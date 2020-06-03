@@ -44,13 +44,21 @@ int main()
 			server.Create(port);
 			server.Listen(5);
 
-			int num_client;
+			int num_clients;
 			printf("Enter the number of client: ");
-			scanf("%d", &num_client);
+			scanf("%d", &num_clients);
 
+			CSocket *clients = new CSocket[num_clients];
+
+			for (int i = 0; i < num_clients; i++)
+				server.Accept(clients[i]);
 			
 			
 			server.Close();
+			for (int i = 0; i < num_client; i++)
+				clients[i].Close();
+			delete[] clients;
+
 
         }
     }

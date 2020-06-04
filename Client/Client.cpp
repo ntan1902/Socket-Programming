@@ -10,6 +10,7 @@
 #define new DEBUG_NEW
 #endif
 
+#define IP_SERVER_192 "192.168.1.5"
 
 // The one and only application object
 
@@ -36,28 +37,36 @@ int main()
         {
             // TODO: code your application's behavior here.
 			CSocket client;
-			char sAddr[1000];
 			int port = 1234;
-			
+
+			/*char sAddr[1000];
 			printf("Enter IP address of server: ");
 			gets_s(sAddr);
-			printf("IP: %s \n", sAddr);
+			printf("IP: %s \n", sAddr);*/
 
 			AfxSocketInit(nullptr);
 			client.Create();
 			
 			char r_str[1000], s_str[1000];
-			if (client.Connect(CA2W(sAddr), port))
+			if (client.Connect(CA2W(IP_SERVER_192), port))
 			{
-				printf("Connected...\n");
+				//Receive the order number of client
+				int id;
+				client.Receive((char*)&id, sizeof(int));
+				printf("Client %d connected...\n", id + 1);
+
 				do
 				{
-					int len = client.Receive(r_str, 100, 0);
+					//Receive message from server
+					int len = client.Receive(r_str, 1000);
 					r_str[len] = 0;
-					printf("\tServer: %s", r_str);
+					printf("\tServer: %s\n", r_str);
+
+					//Send message to server
 					printf("\tClient: ");
 					gets_s(s_str);
-					client.Send(s_str, strlen(s_str), 0);
+					client.Send(s_str, strlen(s_str));
+
 				} while (strcmp(r_str, "exit") && strcmp(s_str, "exit"));
 				client.Close();
 			}

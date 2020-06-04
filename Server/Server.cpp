@@ -46,16 +46,52 @@ int main()
 
 			int num_clients;
 			printf("Enter the number of client: ");
-			scanf("%d", &num_clients);
+			scanf_s("%d", &num_clients);
+			cin.ignore();
 
 			CSocket *clients = new CSocket[num_clients];
 
 			for (int i = 0; i < num_clients; i++)
+			{
 				server.Accept(clients[i]);
+				printf("Accept client %d...\n", i + 1);
+				clients[i].Send((char *)&i, sizeof(int));
+
+				
+			}
 			
-			
+			char s_str[1000], r_str[1000];
+			do
+			{
+				printf("\tServer: ");
+				gets_s(s_str);
+
+				//Send message to clients
+				for (int i = 0; i < num_clients; i++)
+				{
+					clients[i].Send(s_str, strlen(s_str), 0);
+				}
+
+				//Receive messages from clients
+				for (int i = 0; i < num_clients; i++)
+				{
+					int len = clients[i].Receive(r_str, 1000, 0);
+					r_str[len] = 0;
+					printf("\tClient %d: %s\n", i + 1, r_str);
+				}
+
+
+
+			}while(strcmp(r_str, "exit") && strcmp(s_str, "exit"));
+
+
+
+
+
+
+			//Close
 			server.Close();
-			for (int i = 0; i < num_client; i++)
+			for (int i = 0; i < num_clients; i++)
 				clients[i].Close();
 			delete[] clients;
 

@@ -60,6 +60,7 @@ void CMFCClientDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LIST_BOX, m_list_box);
+	DDX_Control(pDX, IDC_PRG_CTRL, m_prg_ctrl);
 }
 
 BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
@@ -105,6 +106,7 @@ BOOL CMFCClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -228,6 +230,9 @@ void CMFCClientDlg::Connect()
 	m_server_addr.sin_port = htons(1234);
 	inet_pton(AF_INET, IP, &m_server_addr.sin_addr);
 	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
+	
+	
+
 	if (e == -1)
 	{
 		MessageBox(_T("Error in connecting"), _T("Error"), MB_ICONERROR);
@@ -248,16 +253,29 @@ void CMFCClientDlg::NonBlocking()
 		MessageBox((LPCTSTR)"Cant call WSAAsyncSelect");
 }
 
+void CMFCClientDlg::RunProgressControl()
+{
+	m_prg_ctrl.ShowWindow(SW_SHOW);
+	m_prg_ctrl.SetRange(0, 1000);
+
+	for (int i = 0; i < 10000 / 2; i++)
+	{
+		m_prg_ctrl.SetPos(i);
+	}
+	m_prg_ctrl.CloseWindow();
+}
+
 void CMFCClientDlg::OnBnClickedBtnConnect()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
-
+	RunProgressControl();
 	GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(FALSE);
 
 	CreateSocket();
 	Connect();
 
+	
 	NonBlocking();
 
 	UpdateData(FALSE);

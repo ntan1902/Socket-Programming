@@ -49,10 +49,12 @@ public:
 	void CreateSocket();
 	void Connect();
 	void NonBlocking();
+	void RunProgressControl();
 	afx_msg void OnBnClickedBtnConnect();
 	afx_msg void OnBnClickedCancel();
 protected:
 	CListBox m_list_box;
 	SOCKET m_client_sock;
 	sockaddr_in m_server_addr;
+	CProgressCtrl m_prg_ctrl;
 };

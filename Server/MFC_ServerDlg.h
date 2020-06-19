@@ -5,11 +5,17 @@
 #pragma once
 #include <iostream>
 #include <stdlib.h>
-#include <afxsock.h>
 #include <string.h>
 #include <time.h>
+#include <afxinet.h>
+#include <ws2tcpip.h>
+#include <WinSock2.h>
+
+#pragma comment(lib, "ws2_32.lib")
 
 #pragma warning(disable : 4996)
+
+#define WM_SOCKET WM_USER+1
 // CMFCServerDlg dialog
 class CMFCServerDlg : public CDialogEx
 {
@@ -40,11 +46,12 @@ protected:
 
 public:
 	char* ConvertToChar(const CString &s);
+	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
 protected:
 	CListBox m_list_box;
-	CSocket m_server, m_client;
-
+	SOCKET m_server_sock, m_client_sock;
+	sockaddr_in m_server_addr, m_client_addr;
 };

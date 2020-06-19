@@ -169,22 +169,93 @@ char * CMFCServerDlg::ConvertToChar(const CString & s)
 	return pAnsiString;
 }
 
+//LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
+//{
+//	if (WSAGETSELECTERROR(lParam))
+//	{
+//		// Display the error and close the socket
+//		closesocket(wParam);
+//
+//	}
+//	switch (WSAGETSELECTEVENT(lParam))
+//	{
+//		case FD_ACCEPT:
+//		{
+//			
+//			break;
+//		}
+//		case FD_READ:
+//		{
+//
+//			break;
+//		}
+//	
+//		case FD_CLOSE:
+//		{
+//			break;
+//		}
+//	}
+//	return LRESULT();
+//}
+
+
+
+
 void CMFCServerDlg::OnBnClickedBtnListen()
 {
 	// TODO: Add your control notification handler code here
-	m_list_box.AddString(_T("Listening..."));
 
-	AfxSocketInit(NULL);
-	int port = 1234;
 
-	m_server.Create(port);
-	m_server.Listen(SOMAXCONN);
+	WSADATA wsData;
+	WORD ver = MAKEWORD(2, 2);
+
+	if (WSAStartup(ver, &wsData) != 0)
+	{
+		MessageBox(_T("Error in starting winsock!"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
+	}
+
+	m_server_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (m_server_sock == INVALID_SOCKET)
+	{
+		MessageBox(_T("Error in socket\n"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
+	}
+
+	m_server_addr.sin_family = AF_INET;
+	m_server_addr.sin_port = htons(1234);
+	m_server_addr.sin_addr.S_un.S_addr = INADDR_ANY;
+
+	int e;
+	//BIND
+	e = bind(m_server_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
+	if (e < 0)
+	{
+		MessageBox(_T("Error in binding"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
+	}
+
+	//LISTEN
+	e = listen(m_server_sock, SOMAXCONN);
+	if (e != 0)
+	{
+		MessageBox(_T( "Error in listening"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
+	}
+
+
+	//ACCEPT
+	int addr_size = sizeof(m_client_addr);
+	m_client_sock = accept(m_server_sock, (sockaddr*)&m_client_sock, &addr_size);
+
+
+
 	
-	m_server.Accept(m_client);
-
-	m_list_box.ResetContent();
-	m_list_box.AddString(_T("Client connected"));
-	m_list_box.AddString(_T("Hello client..."));
+	m_list_box.AddString(_T("[+]Client connected"));
 	
 }
 
@@ -192,8 +263,9 @@ void CMFCServerDlg::OnBnClickedBtnListen()
 void CMFCServerDlg::OnBnClickedCancel()
 {
 	// TODO: Add your control notification handler code here
-	m_client.Close();
-	m_server.Close();
+	closesocket(m_client_sock);
+	closesocket(m_server_sock);
+	WSACleanup();
 	CDialogEx::OnCancel();
 }
 

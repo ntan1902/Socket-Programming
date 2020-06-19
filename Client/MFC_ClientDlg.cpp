@@ -66,6 +66,7 @@ BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_MESSAGE(WM_SOCKET, SockMsg)
 	ON_BN_CLICKED(IDC_BTN_CONNECT, &CMFCClientDlg::OnBnClickedBtnConnect)
 	ON_BN_CLICKED(IDCANCEL, &CMFCClientDlg::OnBnClickedCancel)
 	
@@ -168,17 +169,44 @@ char * CMFCClientDlg::ConvertToChar(const CString & s)
 	return pAnsiString;
 }
 
-void CMFCClientDlg::OnBnClickedBtnConnect()
+LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 {
-	// TODO: Add your control notification handler code here
-	UpdateData();
+	if (WSAGETSELECTERROR(lParam))
+	{
+		// Display the error and close the socket
+		closesocket(wParam);
+	}
+	switch (WSAGETSELECTEVENT(lParam))
+	{
+	case FD_READ:
+	{
+		
 
+		
+		break;
+	}
+	case FD_CLOSE:
+	{
+		closesocket(m_client_sock);
+		m_list_box.AddString(_T("[+]Server disconnected"));
+		UpdateData(FALSE);
+		break;
+	}
+
+	}
+	return 0;
+}
+
+void CMFCClientDlg::CreateSocket()
+{
 	WSADATA wsData;
 	WORD ver = MAKEWORD(2, 2);
 
 	if (WSAStartup(ver, &wsData) != 0) {
 		MessageBox(_T("Error starting winsock!"), _T("Error"), MB_ICONERROR);
 		WSACleanup();
+		GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(TRUE);
+
 		return;
 	}
 
@@ -188,21 +216,49 @@ void CMFCClientDlg::OnBnClickedBtnConnect()
 	{
 		MessageBox(_T("Error in socket"), _T("Error"), MB_ICONERROR);
 		WSACleanup();
+		GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(TRUE);
+
 		return;
 	}
-	
+}
+
+void CMFCClientDlg::Connect()
+{
 	m_server_addr.sin_family = AF_INET;
 	m_server_addr.sin_port = htons(1234);
 	inet_pton(AF_INET, IP, &m_server_addr.sin_addr);
-
 	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
 	if (e == -1)
 	{
 		MessageBox(_T("Error in connecting"), _T("Error"), MB_ICONERROR);
 		WSACleanup();
+		GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(TRUE);
+
 		return;
 	}
 	m_list_box.AddString(_T("[+]Connected to server"));
+	
+	UpdateData(FALSE);
+}
+
+void CMFCClientDlg::NonBlocking()
+{
+	int err = WSAAsyncSelect(m_client_sock, m_hWnd, WM_SOCKET, FD_READ | FD_CLOSE);
+	if (err)
+		MessageBox((LPCTSTR)"Cant call WSAAsyncSelect");
+}
+
+void CMFCClientDlg::OnBnClickedBtnConnect()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+
+	GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(FALSE);
+
+	CreateSocket();
+	Connect();
+
+	NonBlocking();
 
 	UpdateData(FALSE);
 }

@@ -16,6 +16,7 @@
 #pragma warning(disable : 4996)
 
 #define WM_SOCKET WM_USER+1
+#define SIZE_CLIENT 100
 // CMFCServerDlg dialog
 class CMFCServerDlg : public CDialogEx
 {
@@ -47,11 +48,18 @@ protected:
 public:
 	char* ConvertToChar(const CString &s);
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
+	void CreateSocket();
+	void Bind();
+	void Listen();
+	void NonBlocking();
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
 protected:
 	CListBox m_list_box;
-	SOCKET m_server_sock, m_client_sock;
-	sockaddr_in m_server_addr, m_client_addr;
+	SOCKET m_server_sock;
+
+	int m_num_client;
+	SOCKET m_client_sock[SIZE_CLIENT];
+	sockaddr_in m_server_addr;
 };

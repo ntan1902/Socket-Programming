@@ -13,7 +13,7 @@
 
 #define SIZE 1024
 #define IP "192.168.1.6"
-#define WM_SOCK WM_USER+1
+#define WM_SOCKET WM_USER+1
 #pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable : 4996)
 
@@ -43,13 +43,16 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
-	SOCKET m_client_sock;
-	sockaddr_in m_server_addr;
 public:
 	char* ConvertToChar(const CString &s);
+	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
+	void CreateSocket();
+	void Connect();
+	void NonBlocking();
 	afx_msg void OnBnClickedBtnConnect();
 	afx_msg void OnBnClickedCancel();
 protected:
 	CListBox m_list_box;
-
+	SOCKET m_client_sock;
+	sockaddr_in m_server_addr;
 };

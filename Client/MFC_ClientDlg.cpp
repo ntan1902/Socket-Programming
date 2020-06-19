@@ -174,21 +174,38 @@ void CMFCClientDlg::OnBnClickedBtnConnect()
 	// TODO: Add your control notification handler code here
 	UpdateData();
 
-	int port = 1234;
+	WSADATA wsData;
+	WORD ver = MAKEWORD(2, 2);
 
-
-
-	AfxSocketInit(nullptr);
-	m_client.Create();
-
-
-	if (m_client.Connect(CA2W(IP_SERVER_192), port))
-	{
-		//Receive the order number of client
-		m_list_box.AddString(_T("Connected"));
-		UpdateData(FALSE);
+	if (WSAStartup(ver, &wsData) != 0) {
+		MessageBox(_T("Error starting winsock!"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
 	}
 
+	m_client_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (m_client_sock == INVALID_SOCKET)
+	{
+		MessageBox(_T("Error in socket"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
+	}
+	
+	m_server_addr.sin_family = AF_INET;
+	m_server_addr.sin_port = htons(1234);
+	inet_pton(AF_INET, IP, &m_server_addr.sin_addr);
+
+	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
+	if (e == -1)
+	{
+		MessageBox(_T("Error in connecting"), _T("Error"), MB_ICONERROR);
+		WSACleanup();
+		return;
+	}
+	m_list_box.AddString(_T("[+]Connected to server"));
+
+	UpdateData(FALSE);
 }
 
 
@@ -196,6 +213,6 @@ void CMFCClientDlg::OnBnClickedBtnConnect()
 void CMFCClientDlg::OnBnClickedCancel()
 {
 	// TODO: Add your control notification handler code here
-	m_client.Close();
+	closesocket(m_client_sock);
 	CDialogEx::OnCancel();
 }

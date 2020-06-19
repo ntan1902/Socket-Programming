@@ -5,10 +5,16 @@
 #pragma once
 #include <iostream>
 #include <stdlib.h>
-#include <afxsock.h>
 #include <string.h>
 #include <time.h>
+#include <afxinet.h>
+#include <ws2tcpip.h>
+#include <string.h>
 
+#define SIZE 1024
+#define IP "192.168.1.6"
+#define WM_SOCK WM_USER+1
+#pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable : 4996)
 
 // CMFCClientDlg dialog
@@ -37,7 +43,8 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
-	CSocket m_client;
+	SOCKET m_client_sock;
+	sockaddr_in m_server_addr;
 public:
 	char* ConvertToChar(const CString &s);
 	afx_msg void OnBnClickedBtnConnect();

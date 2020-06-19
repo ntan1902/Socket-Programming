@@ -12,7 +12,6 @@
 #define new DEBUG_NEW
 #endif
 
-#define IP_SERVER_192 "192.168.1.6"
 
 // CAboutDlg dialog used for App About
 

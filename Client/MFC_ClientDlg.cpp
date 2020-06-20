@@ -52,6 +52,8 @@ END_MESSAGE_MAP()
 
 CMFCClientDlg::CMFCClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFC_CLIENT_DIALOG, pParent)
+	, m_user_name(_T(""))
+	, m_pass(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -61,6 +63,8 @@ void CMFCClientDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LIST_BOX, m_list_box);
 	DDX_Control(pDX, IDC_PRG_CTRL, m_prg_ctrl);
+	DDX_Text(pDX, IDC_EDT_USER, m_user_name);
+	DDX_Text(pDX, IDC_EDT_PASS, m_pass);
 }
 
 BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
@@ -106,7 +110,7 @@ BOOL CMFCClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	
+
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -160,16 +164,6 @@ HCURSOR CMFCClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-
-char * CMFCClientDlg::ConvertToChar(const CString & s)
-{
-	int nSize = s.GetLength();
-	char *pAnsiString = new char[nSize + 1];
-	memset(pAnsiString, 0, nSize + 1);
-	wcstombs(pAnsiString, s, nSize + 1);
-	return pAnsiString;
-}
 
 LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 {
@@ -228,11 +222,12 @@ void CMFCClientDlg::Connect()
 {
 	m_server_addr.sin_family = AF_INET;
 	m_server_addr.sin_port = htons(1234);
+
 	inet_pton(AF_INET, IP, &m_server_addr.sin_addr);
 	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
 	
 	
-
+	m_prg_ctrl.ShowWindow(HIDE_WINDOW);
 	if (e == -1)
 	{
 		MessageBox(_T("Error in connecting"), _T("Error"), MB_ICONERROR);
@@ -242,7 +237,7 @@ void CMFCClientDlg::Connect()
 		return;
 	}
 	m_list_box.AddString(_T("[+]Connected to server"));
-	
+
 	UpdateData(FALSE);
 }
 
@@ -262,20 +257,91 @@ void CMFCClientDlg::RunProgressControl()
 	{
 		m_prg_ctrl.SetPos(i);
 	}
-	m_prg_ctrl.CloseWindow();
 }
+
+char * CMFCClientDlg::ConvertToChar(const CString & s)
+{
+	int nSize = s.GetLength();
+	char *pAnsiString = new char[nSize + 1];
+	memset(pAnsiString, 0, nSize + 1);
+	wcstombs(pAnsiString, s, nSize + 1);
+	return pAnsiString;
+}
+
+void CMFCClientDlg::mSend(SOCKET sk, CString Command)
+{
+	int Len = Command.GetLength();
+	Len += Len;
+	PBYTE sendBuff = new BYTE[1000];
+	memset(sendBuff, 0, 1000);
+	memcpy(sendBuff, (PBYTE)(LPCTSTR)Command, Len);
+	send(sk, (char*)&Len, sizeof(Len), 0);
+	send(sk, (char*)sendBuff, Len, 0);
+	delete[] sendBuff;
+}
+
+int CMFCClientDlg::mRecv(SOCKET sk, CString & Command)
+{
+	int buffLength;
+	recv(sk, (char*)&buffLength, sizeof(int), 0);
+
+	PBYTE buffer = new BYTE[1000];
+	memset(buffer, 0, 1000);
+	recv(sk, (char*)buffer, buffLength, 0);
+	TCHAR* ttc = (TCHAR*)buffer;
+	Command = ttc;
+
+
+	if (Command.GetLength() == 0)
+		return -1;
+
+	delete[]buffer;
+	return 0;
+}
+
+void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
+{
+	int p;
+	int start = 0;
+	// 1\r\nNtan\r\n1902\r\n
+	while (src.Find(_T("\r\n"), start) != -1)
+	{
+		p = src.Find(_T("\r\n"), start);
+		des.push_back(src.Mid(start, p - start));
+		start = p + 2;
+
+	}
+}
+
+
 
 void CMFCClientDlg::OnBnClickedBtnConnect()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
+	if (m_user_name.IsEmpty())
+	{
+		MessageBox(_T("You should enter the username"), _T("Error"), MB_ICONERROR);
+		return;
+	}
+	if (m_pass.IsEmpty())
+	{
+		MessageBox(_T("You should enter the password"), _T("Error"), MB_ICONERROR);
+		return;
+	}
+	
+
 	RunProgressControl();
+
 	GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(FALSE);
 
 	CreateSocket();
+	
 	Connect();
 
-	
+	CString account = _T("1\r\n") + m_user_name + _T("\r\n") + m_pass + _T("\r\n");
+	mSend(m_client_sock, account);
+
 	NonBlocking();
 
 	UpdateData(FALSE);

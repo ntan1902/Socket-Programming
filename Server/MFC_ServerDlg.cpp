@@ -8,6 +8,8 @@
 #include "MFC_ServerDlg.h"
 #include "afxdialogex.h"
 
+#include <unordered_map>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -105,7 +107,7 @@ BOOL CMFCServerDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-
+	InputDatabaseAccount();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -161,13 +163,22 @@ HCURSOR CMFCServerDlg::OnQueryDragIcon()
 
 
 
-char * CMFCServerDlg::ConvertToChar(const CString & s)
+void CMFCServerDlg::InputDatabaseAccount()
 {
-	int nSize = s.GetLength();
-	char *pAnsiString = new char[nSize + 1];
-	memset(pAnsiString, 0, nSize + 1);
-	wcstombs(pAnsiString, s, nSize + 1);
-	return pAnsiString;
+	std::ifstream fi;
+	fi.open("database.txt");
+	if (!fi.is_open())
+	{
+		MessageBox(_T("Error in opening file database.txt"), _T("Error"), MB_ICONERROR);
+		return;
+	}
+	while (!fi.eof())
+	{
+		char user[100], pass[100];
+		fi >> user >> pass;
+		m_account.insert(std::make_pair(CString(user), CString(pass)));
+	}
+
 }
 
 LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
@@ -182,13 +193,39 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 	{
 		case FD_ACCEPT:
 		{
-			m_client_sock[m_num_client++] = accept(wParam, NULL, NULL);
-			m_list_box.AddString(_T("[+]Client connected"));
+			
+			m_client_sock.push_back(accept(wParam, NULL, NULL));
 			UpdateData(FALSE);
 			break;
 		}
 		case FD_READ:
 		{
+			CString src;
+			std::vector<CString> res;
+			if (mRecv(wParam, src) < 0)
+			{
+				MessageBox(_T("Error in receiving"), _T("Error"), MB_ICONERROR);
+				break;
+			}
+			Split(src, res);
+			int flag = _ttoi(res[0]);
+			switch (flag)
+			{
+				/*Login*/
+				case 1:
+				{
+					if (CheckLogin(res))
+					{
+						flag = 1;
+					}
+					else
+					{
+						flag = 0;
+					}
+					break;
+				}
+
+			}
 
 			break;
 		}
@@ -262,7 +299,80 @@ void CMFCServerDlg::NonBlocking()
 		MessageBox((LPCTSTR)"Cant call WSAAsyncSelect");
 }
 
+char * CMFCServerDlg::ConvertToChar(const CString & s)
+{
+	int nSize = s.GetLength();
+	char *pAnsiString = new char[nSize + 1];
+	memset(pAnsiString, 0, nSize + 1);
+	wcstombs(pAnsiString, s, nSize + 1);
+	return pAnsiString;
+}
 
+void CMFCServerDlg::mSend(SOCKET sk, CString Command)
+{
+	int Len = Command.GetLength();
+	Len += Len;
+	PBYTE sendBuff = new BYTE[1000];
+	memset(sendBuff, 0, 1000);
+	memcpy(sendBuff, (PBYTE)(LPCTSTR)Command, Len);
+	send(sk, (char*)&Len, sizeof(Len), 0);
+	send(sk, (char*)sendBuff, Len, 0);
+	delete[] sendBuff;
+}
+
+
+
+
+int CMFCServerDlg::mRecv(SOCKET sk, CString &Command)
+{
+
+	
+	int buffLength;
+	recv(sk, (char*)&buffLength, sizeof(int), 0);
+
+	PBYTE buffer = new BYTE[1000];
+	memset(buffer, 0, 1000);
+	recv(sk, (char*)buffer, buffLength, 0);
+	TCHAR* ttc = (TCHAR*)buffer;
+	Command = ttc;
+
+
+	if (Command.GetLength() == 0)
+		return -1;
+
+	delete[]buffer;
+	return 0;
+}
+
+void CMFCServerDlg::Split(CString src, std::vector<CString> &des)
+{
+	int p;
+	int start = 0;
+	// 1\r\nNtan\r\n1902\r\n
+	while (src.Find(_T("\r\n"), start) != -1)
+	{
+		p = src.Find(_T("\r\n"), start);
+		des.push_back(src.Mid(start, p - start));
+		start = p + 2;
+
+	}
+}
+
+
+
+bool CMFCServerDlg::CheckLogin(std::vector<CString> account)
+{
+	bool is_login = false;
+
+	if (m_account.find(account[1]) != m_account.end())
+	{
+		if (m_account[account[1]] == account[2])
+		{
+			is_login = true;
+		}
+	}
+	return is_login;
+}
 
 
 void CMFCServerDlg::OnBnClickedBtnListen()
@@ -270,12 +380,14 @@ void CMFCServerDlg::OnBnClickedBtnListen()
 	// TODO: Add your control notification handler code here
 
 	UpdateData(TRUE);
+
 	GetDlgItem(IDC_BTN_LISTEN)->EnableWindow(FALSE);
+
 
 	CreateSocket();
 	Bind();
 	Listen();
-	m_num_client = 0;
+	//m_num_client = 0;
 
 	NonBlocking();
 

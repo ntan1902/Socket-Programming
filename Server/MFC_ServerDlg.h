@@ -6,17 +6,18 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <afxinet.h>
 #include <ws2tcpip.h>
 #include <WinSock2.h>
-
+#include <fstream>
+#include <vector>
+#include <map> 
 #pragma comment(lib, "ws2_32.lib")
 
 #pragma warning(disable : 4996)
 
 #define WM_SOCKET WM_USER+1
-#define SIZE_CLIENT 100
+//#define SIZE_CLIENT 100
 // CMFCServerDlg dialog
 class CMFCServerDlg : public CDialogEx
 {
@@ -46,12 +47,18 @@ protected:
 
 
 public:
-	char* ConvertToChar(const CString &s);
+	void InputDatabaseAccount();
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 	void CreateSocket();
 	void Bind();
 	void Listen();
 	void NonBlocking();
+	char* ConvertToChar(const CString &s);
+	void mSend(SOCKET sk, CString Command);
+	int mRecv(SOCKET sk, CString &Command);
+	void Split(CString src, std::vector<CString> &des);
+	bool CheckLogin(std::vector<CString> account);
+
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
@@ -59,7 +66,8 @@ protected:
 	CListBox m_list_box;
 	SOCKET m_server_sock;
 
-	int m_num_client;
-	SOCKET m_client_sock[SIZE_CLIENT];
+	//int m_num_client;
+	std::vector<SOCKET> m_client_sock;
 	sockaddr_in m_server_addr;
+	std::map<CString, CString> m_account;
 };

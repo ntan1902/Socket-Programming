@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "MFC_Client.h"
 #include "MFC_ClientDlg.h"
+#include "MFC_RegisterDlg.h"
 #include "afxdialogex.h"
 
 #ifdef _DEBUG
@@ -77,6 +78,7 @@ BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
 	ON_BN_CLICKED(IDCANCEL, &CMFCClientDlg::OnBnClickedCancel)
 	
 	ON_BN_CLICKED(IDC_BTN_LOGOUT, &CMFCClientDlg::OnBnClickedBtnLogout)
+	ON_BN_CLICKED(IDC_BTN_REGISTER, &CMFCClientDlg::OnBnClickedBtnRegister)
 END_MESSAGE_MAP()
 
 
@@ -168,7 +170,7 @@ HCURSOR CMFCClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CMFCClientDlg::GetSocket(SOCKET & sk)
+void CMFCClientDlg::SetSocket(SOCKET & sk)
 {
 	m_client_sock = sk;
 }
@@ -371,4 +373,16 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 	}
 	return 0;
+}
+
+void CMFCClientDlg::OnBnClickedBtnRegister()
+{
+	// TODO: Add your control notification handler code here
+	GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(FALSE);
+	ShowWindow(HIDE_WINDOW);
+	MFC_RegisterDlg dlg;
+	dlg.DoModal();
+	GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(TRUE);
+	ShowWindow(SW_SHOW);
+	UpdateData(FALSE);
 }

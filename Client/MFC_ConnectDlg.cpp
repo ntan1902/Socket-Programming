@@ -116,7 +116,7 @@ void MFC_ConnectDlg::Connect()
 
 	/*Change Dialog*/
 	CMFCClientDlg dlg;
-	dlg.GetSocket(m_client_sock);
+	dlg.SetSocket(m_client_sock);
 	ShowWindow(HIDE_WINDOW);
 	dlg.DoModal();
 	ShowWindow(SW_SHOW);

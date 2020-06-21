@@ -45,7 +45,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	void GetSocket(SOCKET &sk);
+	void SetSocket(SOCKET &sk);
 	void Login();
 	void NonBlocking();
 	void RunProgressControl();
@@ -64,4 +64,6 @@ protected:
 	CString m_user_name;
 	CString m_pass;
 
+public:
+	afx_msg void OnBnClickedBtnRegister();
 };

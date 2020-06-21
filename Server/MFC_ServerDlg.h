@@ -12,6 +12,7 @@
 #include <fstream>
 #include <vector>
 #include <map> 
+#include <time.h>
 #pragma comment(lib, "ws2_32.lib")
 
 #pragma warning(disable : 4996)
@@ -48,7 +49,6 @@ protected:
 
 public:
 	void InputDatabaseAccount();
-	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 	void CreateSocket();
 	void Bind();
 	void Listen();
@@ -57,17 +57,23 @@ public:
 	void mSend(SOCKET sk, CString Command);
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);
-	bool CheckLogin(std::vector<CString> account);
+	bool CheckLogin(CString user, CString pass);
+	int FindClient(SOCKET sk);
 
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
+	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 protected:
 	CListBox m_list_box;
 	SOCKET m_server_sock;
 
-	//int m_num_client;
-	std::vector<SOCKET> m_client_sock;
+	struct SOCKET_CLIENT{
+		SOCKET m_client_sock;
+		CString m_user_name;
+		bool m_bIsLogin;
+	};
+	std::vector<SOCKET_CLIENT> m_client;
 	sockaddr_in m_server_addr;
 	std::map<CString, CString> m_account;
 };

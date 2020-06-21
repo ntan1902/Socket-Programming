@@ -10,6 +10,7 @@
 #include <ws2tcpip.h>
 #include <string.h>
 #include <vector>
+#include <time.h>
 
 #define IP "192.168.1.6"
 #define WM_SOCKET WM_USER+1
@@ -44,9 +45,9 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 	void CreateSocket();
 	void Connect();
+	void Login();
 	void NonBlocking();
 	void RunProgressControl();
 	char* ConvertToChar(const CString &s);
@@ -54,9 +55,10 @@ public:
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);
 
-	afx_msg void OnBnClickedBtnConnect();
+	afx_msg void OnBnClickedBtnLogin();
 	afx_msg void OnBnClickedCancel();
-
+	afx_msg void OnBnClickedBtnLogout();
+	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 protected:
 	CListBox m_list_box;
 	SOCKET m_client_sock;
@@ -64,4 +66,5 @@ protected:
 	CProgressCtrl m_prg_ctrl;
 	CString m_user_name;
 	CString m_pass;
+
 };

@@ -72,9 +72,10 @@ BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_MESSAGE(WM_SOCKET, SockMsg)
-	ON_BN_CLICKED(IDC_BTN_CONNECT, &CMFCClientDlg::OnBnClickedBtnConnect)
+	ON_BN_CLICKED(IDC_BTN_LOGIN, &CMFCClientDlg::OnBnClickedBtnLogin)
 	ON_BN_CLICKED(IDCANCEL, &CMFCClientDlg::OnBnClickedCancel)
 	
+	ON_BN_CLICKED(IDC_BTN_LOGOUT, &CMFCClientDlg::OnBnClickedBtnLogout)
 END_MESSAGE_MAP()
 
 
@@ -110,7 +111,9 @@ BOOL CMFCClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	CreateSocket();
 
+	Connect();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -164,57 +167,32 @@ HCURSOR CMFCClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
-{
-	if (WSAGETSELECTERROR(lParam))
-	{
-		// Display the error and close the socket
-		closesocket(wParam);
-	}
-	switch (WSAGETSELECTEVENT(lParam))
-	{
-	case FD_READ:
-	{
-		
-
-		
-		break;
-	}
-	case FD_CLOSE:
-	{
-		closesocket(m_client_sock);
-		m_list_box.AddString(_T("[+]Server disconnected"));
-		UpdateData(FALSE);
-		break;
-	}
-
-	}
-	return 0;
-}
-
 void CMFCClientDlg::CreateSocket()
 {
 	WSADATA wsData;
 	WORD ver = MAKEWORD(2, 2);
 
 	if (WSAStartup(ver, &wsData) != 0) {
-		MessageBox(_T("Error starting winsock!"), _T("Error"), MB_ICONERROR);
-		WSACleanup();
-		GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(TRUE);
-
-		return;
+		INT_PTR i = MessageBox(_T("Error starting winsock!"), _T("Error"), MB_OK | MB_ICONERROR);
+		if (i == IDOK)
+		{
+			WSACleanup();
+			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+			return;
+		}
 	}
 
 	m_client_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (m_client_sock == INVALID_SOCKET)
 	{
-		MessageBox(_T("Error in socket"), _T("Error"), MB_ICONERROR);
-		WSACleanup();
-		GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(TRUE);
-
-		return;
+		INT_PTR i = MessageBox(_T("Error in socket"), _T("Error"), MB_OK | MB_ICONERROR);
+		if (i == IDOK)
+		{
+			WSACleanup();
+			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+			return;
+		}
 	}
 }
 
@@ -226,26 +204,36 @@ void CMFCClientDlg::Connect()
 	inet_pton(AF_INET, IP, &m_server_addr.sin_addr);
 	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
 	
-	
-	m_prg_ctrl.ShowWindow(HIDE_WINDOW);
 	if (e == -1)
 	{
-		MessageBox(_T("Error in connecting"), _T("Error"), MB_ICONERROR);
-		WSACleanup();
-		GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(TRUE);
-
-		return;
+		INT_PTR i = MessageBox(_T("Error in connecting"), _T("Error"), MB_OK | MB_ICONERROR);
+		if (i == IDOK)
+		{
+			WSACleanup();
+			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+			return;
+		}
 	}
+	
 	m_list_box.AddString(_T("[+]Connected to server"));
 
 	UpdateData(FALSE);
+}
+
+void CMFCClientDlg::Login()
+{
+	CString account = _T("1\r\n") + m_user_name + _T("\r\n") + m_pass + _T("\r\n");
+	mSend(m_client_sock, account);
+	m_prg_ctrl.ShowWindow(HIDE_WINDOW);
 }
 
 void CMFCClientDlg::NonBlocking()
 {
 	int err = WSAAsyncSelect(m_client_sock, m_hWnd, WM_SOCKET, FD_READ | FD_CLOSE);
 	if (err)
+	{
 		MessageBox((LPCTSTR)"Cant call WSAAsyncSelect");
+	}
 }
 
 void CMFCClientDlg::RunProgressControl()
@@ -315,7 +303,7 @@ void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
 
 
 
-void CMFCClientDlg::OnBnClickedBtnConnect()
+void CMFCClientDlg::OnBnClickedBtnLogin()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
@@ -333,14 +321,9 @@ void CMFCClientDlg::OnBnClickedBtnConnect()
 
 	RunProgressControl();
 
-	GetDlgItem(IDC_BTN_CONNECT)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
 
-	CreateSocket();
-	
-	Connect();
-
-	CString account = _T("1\r\n") + m_user_name + _T("\r\n") + m_pass + _T("\r\n");
-	mSend(m_client_sock, account);
+	Login();
 
 	NonBlocking();
 
@@ -354,4 +337,62 @@ void CMFCClientDlg::OnBnClickedCancel()
 	// TODO: Add your control notification handler code here
 	closesocket(m_client_sock);
 	CDialogEx::OnCancel();
+}
+void CMFCClientDlg::OnBnClickedBtnLogout()
+{
+	// TODO: Add your control notification handler code here
+	INT_PTR i = MessageBox(_T("Do you want to logout?"), _T("Confirm"), MB_OKCANCEL);
+	if (i == IDOK)
+	{
+		WSACleanup();
+		GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+		
+		m_user_name = _T("");
+		m_pass = _T("");
+		UpdateData(FALSE);
+
+		mSend(m_client_sock, _T("2\r\n"));
+	}
+}
+
+LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
+{
+	if (WSAGETSELECTERROR(lParam))
+	{
+		// Display the error and close the socket
+		closesocket(wParam);
+	}
+	switch (WSAGETSELECTEVENT(lParam))
+	{
+	case FD_READ:
+	{
+		CString c;
+		if (mRecv(wParam, c) < 0)
+		{
+			break;
+		}
+		INT_PTR i = MessageBox(c, _T("Error"), MB_OK | MB_ICONERROR);
+		if (i == IDOK)
+		{
+			WSACleanup();
+			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+			m_user_name = _T("");
+			m_pass = _T("");
+			UpdateData(FALSE);
+		}
+
+
+
+		break;
+	}
+	case FD_CLOSE:
+	{
+		closesocket(m_client_sock);
+		m_list_box.AddString(_T("[+]Server disconnected"));
+		UpdateData(FALSE);
+		break;
+	}
+
+	}
+	return 0;
 }

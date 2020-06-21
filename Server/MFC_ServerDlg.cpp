@@ -181,67 +181,6 @@ void CMFCServerDlg::InputDatabaseAccount()
 
 }
 
-LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
-{
-	if (WSAGETSELECTERROR(lParam))
-	{
-		// Display the error and close the socket
-		closesocket(wParam);
-		WSACleanup();
-	}
-	switch (WSAGETSELECTEVENT(lParam))
-	{
-		case FD_ACCEPT:
-		{
-			
-			m_client_sock.push_back(accept(wParam, NULL, NULL));
-			UpdateData(FALSE);
-			break;
-		}
-		case FD_READ:
-		{
-			CString src;
-			std::vector<CString> res;
-			if (mRecv(wParam, src) < 0)
-			{
-				MessageBox(_T("Error in receiving"), _T("Error"), MB_ICONERROR);
-				break;
-			}
-			Split(src, res);
-			int flag = _ttoi(res[0]);
-			switch (flag)
-			{
-				/*Login*/
-				case 1:
-				{
-					if (CheckLogin(res))
-					{
-						flag = 1;
-					}
-					else
-					{
-						flag = 0;
-					}
-					break;
-				}
-
-			}
-
-			break;
-		}
-	
-		case FD_CLOSE:
-		{
-			closesocket(wParam);
-			CString s = _T("");
-			m_list_box.AddString(_T("[+]Client disconnected"));
-			UpdateData(FALSE);
-			break;
-		}
-	}
-	return 0;
-}
-
 void CMFCServerDlg::CreateSocket()
 {
 	WSADATA wsData;
@@ -325,7 +264,6 @@ void CMFCServerDlg::mSend(SOCKET sk, CString Command)
 
 int CMFCServerDlg::mRecv(SOCKET sk, CString &Command)
 {
-
 	
 	int buffLength;
 	recv(sk, (char*)&buffLength, sizeof(int), 0);
@@ -338,8 +276,9 @@ int CMFCServerDlg::mRecv(SOCKET sk, CString &Command)
 
 
 	if (Command.GetLength() == 0)
+	{
 		return -1;
-
+	}
 	delete[]buffer;
 	return 0;
 }
@@ -358,21 +297,33 @@ void CMFCServerDlg::Split(CString src, std::vector<CString> &des)
 	}
 }
 
-
-
-bool CMFCServerDlg::CheckLogin(std::vector<CString> account)
+bool CMFCServerDlg::CheckLogin(CString user, CString pass)
 {
 	bool is_login = false;
 
-	if (m_account.find(account[1]) != m_account.end())
+	if (m_account.find(user) != m_account.end())
 	{
-		if (m_account[account[1]] == account[2])
+		if (m_account[user] == pass)
 		{
 			is_login = true;
 		}
 	}
 	return is_login;
 }
+
+int CMFCServerDlg::FindClient(SOCKET sk)
+{
+	for (int i = 0; i < m_client.size(); i++)
+	{
+		if (m_client[i].m_client_sock == sk)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+
 
 
 void CMFCServerDlg::OnBnClickedBtnListen()
@@ -410,4 +361,109 @@ void CMFCServerDlg::OnBnClickedBtnClear()
 	// TODO: Add your control notification handler code here
 	m_list_box.ResetContent();
 	UpdateData(FALSE);
+}
+
+
+LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
+{
+	if (WSAGETSELECTERROR(lParam))
+	{
+		// Display the error and close the socket
+		closesocket(wParam);
+		WSACleanup();
+	}
+	switch (WSAGETSELECTEVENT(lParam))
+	{
+		case FD_ACCEPT:
+		{
+			SOCKET_CLIENT s;
+			s.m_client_sock = accept(wParam, NULL, NULL);
+
+			srand((unsigned)time(NULL));
+			int R = rand();
+			CString guest_R;
+			guest_R.Format(_T("%d"), R);
+			s.m_user_name = _T("Guest ") + guest_R;
+
+			m_client.push_back(s);
+			UpdateData(FALSE);
+			break;
+		}
+		case FD_READ:
+		{
+			int i = FindClient(wParam);
+			CString src;
+			std::vector<CString> res;
+			if (mRecv(wParam, src) < 0)
+			{
+				break;
+			}
+			Split(src, res);
+			int flag = _ttoi(res[0]);
+			switch (flag)
+			{
+				/*Login*/
+				case 1:
+				{
+					if (CheckLogin(res[1], res[2]))
+					{
+						
+						m_client[i].m_user_name = res[1];
+						m_client[i].m_bIsLogin = true;
+						m_list_box.AddString(res[1] + _T(" login"));
+						UpdateData(FALSE);
+					
+					}
+					else
+					{
+						mSend(wParam, _T("Invalid login, please try again"));
+						if (i >= 0)
+						{
+							m_client[i].m_bIsLogin = false;
+						}
+					}
+					UpdateData(FALSE);
+					break;
+				}
+
+				/*Logout*/
+				case 2:
+				{
+					if (m_client[i].m_bIsLogin)
+					{
+						m_client[i].m_bIsLogin = false;
+
+						m_list_box.AddString(m_client[i].m_user_name + _T(" logout"));
+						UpdateData(FALSE);
+
+						srand((unsigned)time(NULL));
+						int R = rand();
+						CString guest_R;
+						guest_R.Format(_T("%d"), R);
+						m_client[i].m_user_name = _T("Guest ") + guest_R;
+
+					}
+					break;
+				}
+
+			}
+
+			break;
+		}
+
+		case FD_CLOSE:
+		{
+			UpdateData();
+			int i = FindClient(wParam);
+			if (i >= 0)
+			{
+				m_list_box.AddString(m_client[i].m_user_name + _T(" disconnected"));
+				m_client.erase(m_client.begin() + i);
+				closesocket(wParam);
+			}
+
+			break;
+		}
+	}
+	return 0;
 }

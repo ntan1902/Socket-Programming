@@ -61,7 +61,8 @@ CMFCServerDlg::CMFCServerDlg(CWnd* pParent /*=nullptr*/)
 void CMFCServerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_LIST1, m_list_box);
+	DDX_Control(pDX, IDC_LIST_INFO, m_list_box);
+	DDX_Control(pDX, IDC_LIST_CLIENTS, m_list_clients);
 }
 
 BEGIN_MESSAGE_MAP(CMFCServerDlg, CDialogEx)
@@ -111,6 +112,26 @@ BOOL CMFCServerDlg::OnInitDialog()
 	CreateSocket();
 	Bind();
 	NonBlocking();
+
+
+	m_list_clients.SetExtendedStyle(LVS_EX_FULLROWSELECT);
+	m_list_clients.InsertColumn(0, _T("Client Name"),LVCFMT_LEFT, 110);
+	m_list_clients.InsertColumn(1, _T("Connection"), LVCFMT_LEFT, 110);
+	m_list_clients.InsertColumn(2, _T("Status"), LVCFMT_LEFT, 110);
+
+	/*Update list clients in database*/
+	/*std::map<CString, CString>::iterator it;
+	int row = 0;
+	for (it = m_account.begin(); it != m_account.end(); it++)
+	{
+		row = m_list_clients.InsertItem(0, it->first);
+		m_list_clients.SetItemText(row, 1, L"Disconnected");
+		m_list_clients.SetItemText(row, 2, L"Logout");
+
+		
+	}*/
+
+
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -210,7 +231,7 @@ void CMFCServerDlg::Bind()
 {
 	m_server_addr.sin_family = AF_INET;
 	m_server_addr.sin_port = htons(1234);
-	m_server_addr.sin_addr.S_un.S_addr = INADDR_ANY;
+	m_server_addr.sin_addr.S_un.S_addr = htons(INADDR_ANY);
 
 	int e;
 	e = bind(m_server_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
@@ -326,6 +347,25 @@ int CMFCServerDlg::FindClient(SOCKET sk)
 	return -1;
 }
 
+void CMFCServerDlg::UpdateListClient()
+{
+	m_list_clients.DeleteAllItems();
+	int row;
+	for (int i = 0; i < m_client.size(); i++)
+	{
+		row = m_list_clients.InsertItem(0, m_client[i].m_user_name);
+		m_list_clients.SetItemText(row, 1, _T("Connected"));
+		if (!m_client[i].m_bIsLogin)
+		{
+			m_list_clients.SetItemText(row, 2, _T("Logout"));
+		}
+		else
+		{
+			m_list_clients.SetItemText(row, 2, _T("Login"));
+		}
+	}
+}
+
 
 
 
@@ -381,6 +421,11 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			s.m_user_name = _T("Guest ") + guest_R;
 
 			m_client.push_back(s);
+
+			/*Update list clients*/
+			UpdateListClient();
+
+
 			UpdateData(FALSE);
 			break;
 		}
@@ -394,56 +439,69 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				break;
 			}
 			Split(src, res);
-			int flag = _ttoi(res[0]);
-			switch (flag)
+
+
+			if (res[0] == _T("Login"))
 			{
 				/*Login*/
-				case 1:
+				if (CheckLogin(res[1], res[2]))
 				{
-					if (CheckLogin(res[1], res[2]))
+					mSend(wParam, _T("Valid\r\n"));
+					m_client[i].m_user_name = res[1];
+					m_client[i].m_bIsLogin = true;
+					m_list_box.AddString(res[1] + _T(" login"));
+
+					for (int j = 0; j < m_client.size(); j++)
 					{
-						
-						m_client[i].m_user_name = res[1];
-						m_client[i].m_bIsLogin = true;
-						m_list_box.AddString(res[1] + _T(" login"));
-						UpdateData(FALSE);
-					
-					}
-					else
-					{
-						mSend(wParam, _T("Invalid login, please try again"));
-						if (i >= 0)
+						if (j != i && m_client[j].m_bIsLogin)
 						{
-							m_client[i].m_bIsLogin = false;
+							mSend(m_client[j].m_client_sock, _T("Login\r\n") + m_client[i].m_user_name + _T("\r\n"));
 						}
 					}
-					UpdateData(FALSE);
-					break;
-				}
+					UpdateListClient();
 
-				/*Logout*/
-				case 2:
+
+				}
+				else
 				{
-					if (m_client[i].m_bIsLogin)
+					mSend(wParam, _T("Invalid\r\nInvalid login, please try again\r\n"));
+					if (i >= 0)
 					{
 						m_client[i].m_bIsLogin = false;
-
-						m_list_box.AddString(m_client[i].m_user_name + _T(" logout"));
-						UpdateData(FALSE);
-
-						srand((unsigned)time(NULL));
-						int R = rand();
-						CString guest_R;
-						guest_R.Format(_T("%d"), R);
-						m_client[i].m_user_name = _T("Guest ") + guest_R;
-
 					}
-					UpdateData(FALSE);
-					break;
 				}
-
+				UpdateData(FALSE);
 			}
 
+			else if (res[0] == _T("Logout"))
+			{
+				/*Logout*/
+				if (m_client[i].m_bIsLogin)
+				{
+					m_client[i].m_bIsLogin = false;
+
+					m_list_box.AddString(m_client[i].m_user_name + _T(" logout"));
+
+					for (int j = 0; j < m_client.size(); j++)
+					{
+						if (j != i && m_client[j].m_bIsLogin)
+						{
+							mSend(m_client[j].m_client_sock, _T("Logout\r\n") + m_client[i].m_user_name + _T("\r\n"));
+						}
+					}
+
+					srand((unsigned)time(NULL));
+					int R = rand();
+					CString guest_R;
+					guest_R.Format(_T("%d"), R);
+					m_client[i].m_user_name = _T("Guest ") + guest_R;
+					UpdateListClient();
+
+
+				}
+				UpdateData(FALSE);
+				break;
+			}
 			break;
 		}
 
@@ -455,6 +513,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			{
 				m_list_box.AddString(m_client[i].m_user_name + _T(" disconnected"));
 				m_client.erase(m_client.begin() + i);
+				UpdateListClient();
 				closesocket(wParam);
 			}
 			UpdateData(FALSE);

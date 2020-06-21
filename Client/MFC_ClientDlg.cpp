@@ -54,6 +54,7 @@ CMFCClientDlg::CMFCClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFC_CLIENT_DIALOG, pParent)
 	, m_user_name(_T(""))
 	, m_pass(_T(""))
+	
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -111,10 +112,8 @@ BOOL CMFCClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	CreateSocket();
-
-	Connect();
-
+	m_list_box.AddString(_T("[+]Connected to server"));
+	UpdateData(FALSE);
 	NonBlocking();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -169,62 +168,14 @@ HCURSOR CMFCClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CMFCClientDlg::CreateSocket()
+void CMFCClientDlg::GetSocket(SOCKET & sk)
 {
-	WSADATA wsData;
-	WORD ver = MAKEWORD(2, 2);
-
-	if (WSAStartup(ver, &wsData) != 0) {
-		INT_PTR i = MessageBox(_T("Error starting winsock!"), _T("Error"), MB_OK | MB_ICONERROR);
-		if (i == IDOK)
-		{
-			WSACleanup();
-			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-			return;
-		}
-	}
-
-	m_client_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	if (m_client_sock == INVALID_SOCKET)
-	{
-		INT_PTR i = MessageBox(_T("Error in socket"), _T("Error"), MB_OK | MB_ICONERROR);
-		if (i == IDOK)
-		{
-			WSACleanup();
-			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-			return;
-		}
-	}
-}
-
-void CMFCClientDlg::Connect()
-{
-	m_server_addr.sin_family = AF_INET;
-	m_server_addr.sin_port = htons(1234);
-
-	inet_pton(AF_INET, IP, &m_server_addr.sin_addr);
-	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
-	
-	if (e == -1)
-	{
-		INT_PTR i = MessageBox(_T("Error in connecting"), _T("Error"), MB_OK | MB_ICONERROR);
-		if (i == IDOK)
-		{
-			WSACleanup();
-			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-			exit(1);
-		}
-	}
-	
-	m_list_box.AddString(_T("[+]Connected to server"));
-
-	UpdateData(FALSE);
+	m_client_sock = sk;
 }
 
 void CMFCClientDlg::Login()
 {
-	CString account = _T("1\r\n") + m_user_name + _T("\r\n") + m_pass + _T("\r\n");
+	CString account = _T("Login\r\n") + m_user_name + _T("\r\n") + m_pass + _T("\r\n");
 	mSend(m_client_sock, account);
 	m_prg_ctrl.ShowWindow(HIDE_WINDOW);
 }
@@ -304,7 +255,6 @@ void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
 }
 
 
-
 void CMFCClientDlg::OnBnClickedBtnLogin()
 {
 	// TODO: Add your control notification handler code here
@@ -323,8 +273,6 @@ void CMFCClientDlg::OnBnClickedBtnLogin()
 
 	RunProgressControl();
 
-	GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
-
 	Login();
 
 	UpdateData(FALSE);
@@ -335,6 +283,7 @@ void CMFCClientDlg::OnBnClickedBtnLogin()
 void CMFCClientDlg::OnBnClickedCancel()
 {
 	// TODO: Add your control notification handler code here
+
 	CDialogEx::OnCancel();
 }
 void CMFCClientDlg::OnBnClickedBtnLogout()
@@ -345,12 +294,13 @@ void CMFCClientDlg::OnBnClickedBtnLogout()
 	{
 
 		GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-		
+		GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
 		m_user_name = _T("");
 		m_pass = _T("");
+		m_list_box.AddString(_T("Logout successfully"));
 		UpdateData(FALSE);
 
-		mSend(m_client_sock, _T("2\r\n"));
+		mSend(m_client_sock, _T("Logout\r\n"));
 	}
 }
 
@@ -366,21 +316,42 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 	{
 		case FD_READ:
 		{
-			CString c;
-			if (mRecv(wParam, c) < 0)
+			CString src;
+			std::vector<CString> res;
+			if (mRecv(wParam, src) < 0)
 			{
 				break;
 			}
-			INT_PTR i = MessageBox(c, _T("Error"), MB_OK | MB_ICONERROR);
-			if (i == IDOK)
+			Split(src, res);
+
+			if (res[0] == _T("Valid"))
 			{
-				GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-				m_user_name = _T("");
-				m_pass = _T("");
-				UpdateData(FALSE);
+				/*Valid login*/
+				m_list_box.AddString(_T("Login successfully!"));
+				GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
+				GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(TRUE);
 			}
+			else if (res[0] == _T("Invalid"))
+			{
+				/*Invalid login*/
+				INT_PTR i = MessageBox(res[1], _T("Error"), MB_OK | MB_ICONERROR);
+				if (i == IDOK)
+				{
+					GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+					GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
+				}
+			}
+			else if (res[0] == _T("Login"))
+			{
+				m_list_box.AddString(res[1] + _T(" login"));
 
-
+			}
+			else if (res[0] == _T("Logout"))
+			{
+				/*Other client logout*/
+				m_list_box.AddString(res[1] + _T(" logout"));
+			}
+			UpdateData(FALSE);
 
 			break;
 		}
@@ -389,6 +360,11 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 			m_list_box.AddString(_T("[+]Server disconnected"));
 			closesocket(m_client_sock);
+			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
+			GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
+			GetDlgItem(IDC_EDT_USER)->EnableWindow(FALSE);
+			GetDlgItem(IDC_EDT_PASS)->EnableWindow(FALSE);
+
 			UpdateData(FALSE);
 			break;
 		}

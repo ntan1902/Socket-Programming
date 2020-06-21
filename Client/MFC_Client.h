@@ -10,7 +10,6 @@
 
 #include "resource.h"		// main symbols
 
-
 // CMFCClientApp:
 // See MFC_Client.cpp for the implementation of this class
 //

@@ -6,7 +6,7 @@
 #include "framework.h"
 #include "MFC_Client.h"
 #include "MFC_ClientDlg.h"
-
+#include "MFC_ConnectDlg.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -77,8 +77,12 @@ BOOL CMFCClientApp::InitInstance()
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
 
-	CMFCClientDlg dlg;
+	/*CMFCClientDlg dlg;
+	m_pMainWnd = &dlg;*/
+	MFC_ConnectDlg dlg;
 	m_pMainWnd = &dlg;
+
+
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{

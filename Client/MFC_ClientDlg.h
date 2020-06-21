@@ -12,10 +12,10 @@
 #include <vector>
 #include <time.h>
 
-#define IP "192.168.1.6"
-#define WM_SOCKET WM_USER+1
 #pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable : 4996)
+
+#define WM_SOCKET WM_USER+1
 
 // CMFCClientDlg dialog
 class CMFCClientDlg : public CDialogEx
@@ -45,8 +45,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	void CreateSocket();
-	void Connect();
+	void GetSocket(SOCKET &sk);
 	void Login();
 	void NonBlocking();
 	void RunProgressControl();
@@ -54,7 +53,6 @@ public:
 	void mSend(SOCKET sk, CString Command);
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);
-
 	afx_msg void OnBnClickedBtnLogin();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnLogout();
@@ -62,7 +60,6 @@ public:
 protected:
 	CListBox m_list_box;
 	SOCKET m_client_sock;
-	sockaddr_in m_server_addr;
 	CProgressCtrl m_prg_ctrl;
 	CString m_user_name;
 	CString m_pass;

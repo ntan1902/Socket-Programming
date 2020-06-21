@@ -14,11 +14,12 @@
 #include <map> 
 #include <time.h>
 #pragma comment(lib, "ws2_32.lib")
-
 #pragma warning(disable : 4996)
 
 #define WM_SOCKET WM_USER+1
-//#define SIZE_CLIENT 100
+
+
+
 // CMFCServerDlg dialog
 class CMFCServerDlg : public CDialogEx
 {
@@ -59,6 +60,7 @@ public:
 	void Split(CString src, std::vector<CString> &des);
 	bool CheckLogin(CString user, CString pass);
 	int FindClient(SOCKET sk);
+	void UpdateListClient();
 
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
@@ -66,12 +68,13 @@ public:
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 protected:
 	CListBox m_list_box;
+	CListCtrl m_list_clients;
 	SOCKET m_server_sock;
 
 	struct SOCKET_CLIENT{
 		SOCKET m_client_sock;
 		CString m_user_name;
-		bool m_bIsLogin;
+		bool m_bIsLogin = false;
 	};
 	std::vector<SOCKET_CLIENT> m_client;
 	sockaddr_in m_server_addr;

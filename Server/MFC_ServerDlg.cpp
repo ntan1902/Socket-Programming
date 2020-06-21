@@ -108,6 +108,9 @@ BOOL CMFCServerDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 	InputDatabaseAccount();
+	CreateSocket();
+	Bind();
+	NonBlocking();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -334,13 +337,8 @@ void CMFCServerDlg::OnBnClickedBtnListen()
 
 	GetDlgItem(IDC_BTN_LISTEN)->EnableWindow(FALSE);
 
-
-	CreateSocket();
-	Bind();
 	Listen();
-	//m_num_client = 0;
 
-	NonBlocking();
 
 	
 	UpdateData(FALSE);
@@ -350,8 +348,6 @@ void CMFCServerDlg::OnBnClickedBtnListen()
 void CMFCServerDlg::OnBnClickedCancel()
 {
 	// TODO: Add your control notification handler code here
-	closesocket(m_server_sock);
-	WSACleanup();
 	CDialogEx::OnCancel();
 }
 
@@ -370,7 +366,6 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 	{
 		// Display the error and close the socket
 		closesocket(wParam);
-		WSACleanup();
 	}
 	switch (WSAGETSELECTEVENT(lParam))
 	{
@@ -443,6 +438,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 						m_client[i].m_user_name = _T("Guest ") + guest_R;
 
 					}
+					UpdateData(FALSE);
 					break;
 				}
 
@@ -461,7 +457,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				m_client.erase(m_client.begin() + i);
 				closesocket(wParam);
 			}
-
+			UpdateData(FALSE);
 			break;
 		}
 	}

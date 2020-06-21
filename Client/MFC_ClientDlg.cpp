@@ -115,6 +115,8 @@ BOOL CMFCClientDlg::OnInitDialog()
 
 	Connect();
 
+	NonBlocking();
+
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -211,7 +213,7 @@ void CMFCClientDlg::Connect()
 		{
 			WSACleanup();
 			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-			return;
+			exit(1);
 		}
 	}
 	
@@ -325,8 +327,6 @@ void CMFCClientDlg::OnBnClickedBtnLogin()
 
 	Login();
 
-	NonBlocking();
-
 	UpdateData(FALSE);
 }
 
@@ -335,7 +335,6 @@ void CMFCClientDlg::OnBnClickedBtnLogin()
 void CMFCClientDlg::OnBnClickedCancel()
 {
 	// TODO: Add your control notification handler code here
-	closesocket(m_client_sock);
 	CDialogEx::OnCancel();
 }
 void CMFCClientDlg::OnBnClickedBtnLogout()
@@ -344,7 +343,7 @@ void CMFCClientDlg::OnBnClickedBtnLogout()
 	INT_PTR i = MessageBox(_T("Do you want to logout?"), _T("Confirm"), MB_OKCANCEL);
 	if (i == IDOK)
 	{
-		WSACleanup();
+
 		GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
 		
 		m_user_name = _T("");
@@ -361,37 +360,38 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 	{
 		// Display the error and close the socket
 		closesocket(wParam);
+		
 	}
 	switch (WSAGETSELECTEVENT(lParam))
 	{
-	case FD_READ:
-	{
-		CString c;
-		if (mRecv(wParam, c) < 0)
+		case FD_READ:
 		{
+			CString c;
+			if (mRecv(wParam, c) < 0)
+			{
+				break;
+			}
+			INT_PTR i = MessageBox(c, _T("Error"), MB_OK | MB_ICONERROR);
+			if (i == IDOK)
+			{
+				GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
+				m_user_name = _T("");
+				m_pass = _T("");
+				UpdateData(FALSE);
+			}
+
+
+
 			break;
 		}
-		INT_PTR i = MessageBox(c, _T("Error"), MB_OK | MB_ICONERROR);
-		if (i == IDOK)
+		case FD_CLOSE:
 		{
-			WSACleanup();
-			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
-			m_user_name = _T("");
-			m_pass = _T("");
+
+			m_list_box.AddString(_T("[+]Server disconnected"));
+			closesocket(m_client_sock);
 			UpdateData(FALSE);
+			break;
 		}
-
-
-
-		break;
-	}
-	case FD_CLOSE:
-	{
-		closesocket(m_client_sock);
-		m_list_box.AddString(_T("[+]Server disconnected"));
-		UpdateData(FALSE);
-		break;
-	}
 
 	}
 	return 0;

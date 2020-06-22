@@ -55,7 +55,8 @@ CMFCClientDlg::CMFCClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFC_CLIENT_DIALOG, pParent)
 	, m_user_name(_T(""))
 	, m_pass(_T(""))
-	
+	, m_file_download(_T(""))
+	, m_file_upload(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -63,10 +64,13 @@ CMFCClientDlg::CMFCClientDlg(CWnd* pParent /*=nullptr*/)
 void CMFCClientDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_LIST_BOX, m_list_box);
+	DDX_Control(pDX, IDC_LIST_BOX, m_list_box_info);
 	DDX_Control(pDX, IDC_PRG_CTRL, m_prg_ctrl);
 	DDX_Text(pDX, IDC_EDT_USER, m_user_name);
 	DDX_Text(pDX, IDC_EDT_PASS, m_pass);
+	DDX_Control(pDX, IDC_LIST_FILES_SERVER, m_list_box_files);
+	DDX_Text(pDX, IDC_EDT_DOWNLOAD, m_file_download);
+	DDX_Text(pDX, IDC_EDT_UPLOAD, m_file_upload);
 }
 
 BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
@@ -114,7 +118,7 @@ BOOL CMFCClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	m_list_box.AddString(_T("[+]Connected to server"));
+	m_list_box_info.AddString(_T("[+]Connected to server"));
 	UpdateData(FALSE);
 	NonBlocking();
 
@@ -297,9 +301,11 @@ void CMFCClientDlg::OnBnClickedBtnLogout()
 
 		GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
 		GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
+		GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(TRUE);
 		m_user_name = _T("");
 		m_pass = _T("");
-		m_list_box.AddString(_T("Logout successfully"));
+		m_list_box_info.AddString(_T("Logout successfully"));
+		m_list_box_files.ResetContent();
 		UpdateData(FALSE);
 
 		mSend(m_client_sock, _T("Logout\r\n"));
@@ -329,9 +335,11 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			if (res[0] == _T("Valid"))
 			{
 				/*Valid login*/
-				m_list_box.AddString(_T("Login successfully!"));
+				m_list_box_info.AddString(_T("Login successfully!"));
 				GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
 				GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(TRUE);
+				GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(FALSE);
+
 			}
 			else if (res[0] == _T("Invalid"))
 			{
@@ -341,18 +349,27 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				{
 					GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
 					GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
+					GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(TRUE);
+
 				}
 			}
 			else if (res[0] == _T("Login"))
 			{
-				m_list_box.AddString(res[1] + _T(" login"));
+				m_list_box_info.AddString(res[1] + _T(" login"));
 
 			}
 			else if (res[0] == _T("Logout"))
 			{
 				/*Other client logout*/
-				m_list_box.AddString(res[1] + _T(" logout"));
+				m_list_box_info.AddString(res[1] + _T(" logout"));
 			}
+
+			else if (res[0] == _T("SendFile"))
+			{
+				m_list_box_files.AddString(res[1]);
+			}
+
+
 			UpdateData(FALSE);
 
 			break;
@@ -360,7 +377,8 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 		case FD_CLOSE:
 		{
 
-			m_list_box.AddString(_T("[+]Server disconnected"));
+			m_list_box_info.AddString(_T("[+]Server disconnected"));
+			m_list_box_files.ResetContent();
 			closesocket(m_client_sock);
 			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
 			GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
@@ -378,11 +396,12 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 void CMFCClientDlg::OnBnClickedBtnRegister()
 {
 	// TODO: Add your control notification handler code here
-	GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(FALSE);
 	ShowWindow(HIDE_WINDOW);
 	MFC_RegisterDlg dlg;
+	dlg.SetSocket(m_client_sock);
 	dlg.DoModal();
-	GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(TRUE);
+	
 	ShowWindow(SW_SHOW);
+	NonBlocking();
 	UpdateData(FALSE);
 }

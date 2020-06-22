@@ -61,8 +61,9 @@ CMFCServerDlg::CMFCServerDlg(CWnd* pParent /*=nullptr*/)
 void CMFCServerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_LIST_INFO, m_list_box);
+	DDX_Control(pDX, IDC_LIST_INFO, m_list_box_info);
 	DDX_Control(pDX, IDC_LIST_CLIENTS, m_list_clients);
+	DDX_Control(pDX, IDC_LIST_FILES, m_list_box_files);
 }
 
 BEGIN_MESSAGE_MAP(CMFCServerDlg, CDialogEx)
@@ -111,7 +112,6 @@ BOOL CMFCServerDlg::OnInitDialog()
 	InputDatabaseAccount();
 	CreateSocket();
 	Bind();
-	NonBlocking();
 
 
 	m_list_clients.SetExtendedStyle(LVS_EX_FULLROWSELECT);
@@ -119,19 +119,10 @@ BOOL CMFCServerDlg::OnInitDialog()
 	m_list_clients.InsertColumn(1, _T("Connection"), LVCFMT_LEFT, 110);
 	m_list_clients.InsertColumn(2, _T("Status"), LVCFMT_LEFT, 110);
 
-	/*Update list clients in database*/
-	/*std::map<CString, CString>::iterator it;
-	int row = 0;
-	for (it = m_account.begin(); it != m_account.end(); it++)
-	{
-		row = m_list_clients.InsertItem(0, it->first);
-		m_list_clients.SetItemText(row, 1, L"Disconnected");
-		m_list_clients.SetItemText(row, 2, L"Logout");
+	InitFile();
+	UpdateListFile();
 
-		
-	}*/
-
-
+	NonBlocking();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -189,6 +180,7 @@ HCURSOR CMFCServerDlg::OnQueryDragIcon()
 
 void CMFCServerDlg::InputDatabaseAccount()
 {
+	m_account.clear();
 	std::ifstream fi;
 	fi.open("database.txt");
 	if (!fi.is_open())
@@ -203,6 +195,34 @@ void CMFCServerDlg::InputDatabaseAccount()
 		m_account.insert(std::make_pair(CString(user), CString(pass)));
 	}
 
+}
+
+void CMFCServerDlg::OutputDatabaseAccount(CString user, CString pass)
+{
+	m_account.insert(std::make_pair(user, pass)); // 1: username, 2: pass
+
+	std::ofstream fo;
+	fo.open("database.txt", std::ios::app);
+	if (!fo.is_open())
+	{
+		MessageBox(_T("Error in opening file database.txt"), _T("Error"), MB_ICONERROR);
+		return;
+	}
+	else
+	{
+		/*std::map<CString, CString>::iterator itr;
+		for (itr = m_account.begin(); itr != m_account.end(); ++itr)
+		{
+			fo << ConvertToChar(itr->first) << " " << ConvertToChar(itr->second) << '\n';
+		}*/
+
+		char *u = ConvertToChar(user);
+		char *p = ConvertToChar(pass);
+		fo << "\n" << u << " " << p;
+		delete[]u;
+		delete[]p;
+	}
+	fo.close();
 }
 
 void CMFCServerDlg::CreateSocket()
@@ -325,14 +345,26 @@ bool CMFCServerDlg::CheckLogin(CString user, CString pass)
 {
 	bool is_login = false;
 
-	if (m_account.find(user) != m_account.end())
+	if (m_account[user] == pass)
 	{
-		if (m_account[user] == pass)
+		is_login = true;
+	}
+
+	return is_login;
+}
+
+bool CMFCServerDlg::CheckRegister(CString user)
+{
+	bool is_same = false;
+	std::map<CString, CString>::iterator it;
+	for (it = m_account.begin(); it != m_account.end(); it++)
+	{
+		if (it->first == user)
 		{
-			is_login = true;
+			is_same = true;
 		}
 	}
-	return is_login;
+	return is_same;
 }
 
 int CMFCServerDlg::FindClient(SOCKET sk)
@@ -366,7 +398,32 @@ void CMFCServerDlg::UpdateListClient()
 	}
 }
 
+void CMFCServerDlg::InitFile()
+{
+	m_file.push_back(_T(FILE_NAME1));
+	m_file.push_back(_T(FILE_NAME2));
+	m_file.push_back(_T(FILE_NAME3));
+}
 
+void CMFCServerDlg::UpdateListFile()
+{
+	m_list_box_files.ResetContent();
+	for (int i = 0; i < m_file.size(); i++)
+	{
+		m_list_box_files.AddString(m_file[i]);
+	}
+	UpdateData(FALSE);
+}
+
+void CMFCServerDlg::SendFileToClient(SOCKET sk, bool bSendData)
+{
+
+	for (int i = 0; i < m_file.size(); i++)
+	{
+		CString tmp = _T("SendFile\r\n") + m_file[i] + _T("\r\n");
+		mSend(sk, tmp);
+	}
+}
 
 
 void CMFCServerDlg::OnBnClickedBtnListen()
@@ -395,7 +452,7 @@ void CMFCServerDlg::OnBnClickedCancel()
 void CMFCServerDlg::OnBnClickedBtnClear()
 {
 	// TODO: Add your control notification handler code here
-	m_list_box.ResetContent();
+	m_list_box_info.ResetContent();
 	UpdateData(FALSE);
 }
 
@@ -434,6 +491,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			int i = FindClient(wParam);
 			CString src;
 			std::vector<CString> res;
+			//res.resize(1000);
 			if (mRecv(wParam, src) < 0)
 			{
 				break;
@@ -449,7 +507,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 					mSend(wParam, _T("Valid\r\n"));
 					m_client[i].m_user_name = res[1];
 					m_client[i].m_bIsLogin = true;
-					m_list_box.AddString(res[1] + _T(" login"));
+					m_list_box_info.AddString(res[1] + _T(" login"));
 
 					for (int j = 0; j < m_client.size(); j++)
 					{
@@ -459,7 +517,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 						}
 					}
 					UpdateListClient();
-
+					SendFileToClient(wParam, false);
 
 				}
 				else
@@ -480,7 +538,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				{
 					m_client[i].m_bIsLogin = false;
 
-					m_list_box.AddString(m_client[i].m_user_name + _T(" logout"));
+					m_list_box_info.AddString(m_client[i].m_user_name + _T(" logout"));
 
 					for (int j = 0; j < m_client.size(); j++)
 					{
@@ -500,7 +558,20 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 				}
 				UpdateData(FALSE);
-				break;
+			}
+			else if (res[0] == _T("Register"))
+			{
+				if (!CheckRegister(res[1]))
+				{
+					mSend(wParam, _T("unused"));
+					OutputDatabaseAccount(res[1], res[2]);
+					InputDatabaseAccount();
+				}
+				else
+				{
+					mSend(wParam, _T("used"));
+				}
+				
 			}
 			break;
 		}
@@ -511,7 +582,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			int i = FindClient(wParam);
 			if (i >= 0)
 			{
-				m_list_box.AddString(m_client[i].m_user_name + _T(" disconnected"));
+				m_list_box_info.AddString(m_client[i].m_user_name + _T(" disconnected"));
 				m_client.erase(m_client.begin() + i);
 				UpdateListClient();
 				closesocket(wParam);

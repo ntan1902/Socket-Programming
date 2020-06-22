@@ -23,6 +23,14 @@
 #define IDC_STATIC_TITLE                1020
 #define IDC_PRG_CONTROL_CONNECT         1021
 #define IDC_BTN_REGISTER                1022
+#define IDC_EDT_USER_REGISTER           1023
+#define IDC_EDT_PASS_REGISTER           1024
+#define IDC_BTN_CREATE                  1025
+#define IDC_LIST_FILES_SERVER           1026
+#define IDC_EDT_DOWNLOAD                1027
+#define IDC_EDT_UPLOAD                  1028
+#define IDC_BTN_DOWNLOAD                1029
+#define IDC_BTN_UPLOAD                  1030
 
 // Next default values for new objects
 // 
@@ -30,7 +38,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1023
+#define _APS_NEXT_CONTROL_VALUE         1030
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

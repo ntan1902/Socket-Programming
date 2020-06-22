@@ -58,12 +58,15 @@ public:
 	afx_msg void OnBnClickedBtnLogout();
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 protected:
-	CListBox m_list_box;
+	CListBox m_list_box_info;
 	SOCKET m_client_sock;
 	CProgressCtrl m_prg_ctrl;
 	CString m_user_name;
 	CString m_pass;
-
+	CString m_file_download;
+	CString m_file_upload;
 public:
 	afx_msg void OnBnClickedBtnRegister();
+	CListBox m_list_box_files;
+
 };

@@ -18,7 +18,10 @@
 
 #define WM_SOCKET WM_USER+1
 
-
+#define FILE_NAME1 "Data1.txt"
+#define FILE_NAME2 "Data2.txt"
+#define FILE_NAME3 "Data3.txt"
+#define FILE_NAME_DATABASE "database.txt"
 
 // CMFCServerDlg dialog
 class CMFCServerDlg : public CDialogEx
@@ -50,6 +53,7 @@ protected:
 
 public:
 	void InputDatabaseAccount();
+	void OutputDatabaseAccount(CString user, CString pass);
 	void CreateSocket();
 	void Bind();
 	void Listen();
@@ -59,16 +63,20 @@ public:
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);
 	bool CheckLogin(CString user, CString pass);
+	bool CheckRegister(CString user);
 	int FindClient(SOCKET sk);
 	void UpdateListClient();
-
+	void InitFile();
+	void UpdateListFile();
+	void SendFileToClient(SOCKET sk, bool bSendData = false);
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 protected:
-	CListBox m_list_box;
+	CListBox m_list_box_info;
 	CListCtrl m_list_clients;
+	CListBox m_list_box_files;
 	SOCKET m_server_sock;
 
 	struct SOCKET_CLIENT{
@@ -79,4 +87,5 @@ protected:
 	std::vector<SOCKET_CLIENT> m_client;
 	sockaddr_in m_server_addr;
 	std::map<CString, CString> m_account;
+	std::vector<CString> m_file;
 };

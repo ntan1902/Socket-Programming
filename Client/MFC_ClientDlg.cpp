@@ -83,6 +83,8 @@ BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
 	
 	ON_BN_CLICKED(IDC_BTN_LOGOUT, &CMFCClientDlg::OnBnClickedBtnLogout)
 	ON_BN_CLICKED(IDC_BTN_REGISTER, &CMFCClientDlg::OnBnClickedBtnRegister)
+	ON_BN_CLICKED(IDC_BTN_DOWNLOAD, &CMFCClientDlg::OnBnClickedBtnDownload)
+	ON_BN_CLICKED(IDC_BTN_UPLOAD, &CMFCClientDlg::OnBnClickedBtnUpload)
 END_MESSAGE_MAP()
 
 
@@ -120,6 +122,7 @@ BOOL CMFCClientDlg::OnInitDialog()
 	// TODO: Add extra initialization here
 	m_list_box_info.AddString(_T("[+]Connected to server"));
 	UpdateData(FALSE);
+	InitFile();
 	NonBlocking();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -260,6 +263,36 @@ void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
 	}
 }
 
+void CMFCClientDlg::InitFile()
+{
+	m_file.push_back(_T(FILE_NAME_CLIENT1));
+	m_file.push_back(_T(FILE_NAME_CLIENT2));
+
+}
+
+void CMFCClientDlg::SendFileToServer(SOCKET sk, CString file_name)
+{
+	char *fi_name = ConvertToChar(file_name);
+	std::ifstream fi;
+	fi.open(fi_name);
+	if (!fi.is_open())
+	{
+		MessageBox(_T("Error in opening file"), _T("Error"), MB_ICONERROR);
+		return;
+	}
+	CString c_data = _T("Upload\r\n") + file_name + _T("\r\n");
+	while (!fi.eof())
+	{
+		char data[4096] = { 0 };
+		fi.read(data, sizeof(data));
+		c_data += CString(data) + _T("\r\n");
+		memset(data, 0, 4096);
+	}
+	mSend(sk, c_data);
+	fi.close();
+	delete[]fi_name;
+}
+
 
 void CMFCClientDlg::OnBnClickedBtnLogin()
 {
@@ -368,7 +401,39 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			{
 				m_list_box_files.AddString(res[1]);
 			}
+			else if (res[0] == _T("SendData"))
+			{
+				char *file_down = ConvertToChar(m_file_download);
+				std::ofstream fo;
+				fo.open(file_down);
+				if (!fo.is_open())
+				{
+					MessageBox(_T("Error in opening file database.txt"), _T("Error"), MB_ICONERROR);
+					break;
+				}
+				else
+				{
+					for (int i = 1; i < res.size(); i++)
+					{
+						char *tmp = ConvertToChar(res[i]);
+						fo << tmp;
+						delete[]tmp;
+					}
+				}
+				fo.close();
 
+				delete[]file_down;
+			}
+			else if (res[0] == _T("DownloadError"))
+			{
+				MessageBox(res[1], _T("Error"), MB_OK | MB_ICONERROR);
+				m_file_download = _T("");
+			}
+			else if (res[0] == _T("DownloadSuccess"))
+			{
+				MessageBox(m_file_download + _T(" is downloaded successfully!"), _T("Success"), MB_OK);
+				m_file_download = _T("");
+			}
 
 			UpdateData(FALSE);
 
@@ -403,5 +468,45 @@ void CMFCClientDlg::OnBnClickedBtnRegister()
 	
 	ShowWindow(SW_SHOW);
 	NonBlocking();
+	UpdateData(FALSE);
+}
+
+
+void CMFCClientDlg::OnBnClickedBtnDownload()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+	CString tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
+	mSend(m_client_sock, tmp);
+	UpdateData(FALSE);
+}
+
+
+void CMFCClientDlg::OnBnClickedBtnUpload()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+	bool file_exist = false;
+	for (int i = 0; i < m_file.size(); i++)
+	{
+
+		if (m_file[i].Compare(m_file_upload) == 0)
+		{
+			file_exist = true;
+		}
+	}
+
+	if (file_exist)
+	{
+		SendFileToServer(m_client_sock, m_file_upload);
+		MessageBox(m_file_upload + _T(" is uploaded successfully!"), _T("Success"), MB_OK);
+		m_file_upload = _T("");
+	}
+	else
+	{
+		MessageBox(_T("The file name doesn't exist"), _T("Error"), MB_ICONERROR);
+		m_file_upload = _T("");
+	}
+
 	UpdateData(FALSE);
 }

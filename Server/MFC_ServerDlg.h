@@ -18,9 +18,9 @@
 
 #define WM_SOCKET WM_USER+1
 
-#define FILE_NAME1 "Data1.txt"
-#define FILE_NAME2 "Data2.txt"
-#define FILE_NAME3 "Data3.txt"
+#define FILE_NAME_SERVER1 "Data_Server1.txt"
+#define FILE_NAME_SERVER2 "Data_Server2.txt"
+#define FILE_NAME_SERVER3 "Data_Server3.txt"
 #define FILE_NAME_DATABASE "database.txt"
 
 // CMFCServerDlg dialog
@@ -68,7 +68,7 @@ public:
 	void UpdateListClient();
 	void InitFile();
 	void UpdateListFile();
-	void SendFileToClient(SOCKET sk, bool bSendData = false);
+	void SendFileToClient(SOCKET sk, bool bSendData = false, CString file_name = _T(""));
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();

@@ -400,9 +400,9 @@ void CMFCServerDlg::UpdateListClient()
 
 void CMFCServerDlg::InitFile()
 {
-	m_file.push_back(_T(FILE_NAME1));
-	m_file.push_back(_T(FILE_NAME2));
-	m_file.push_back(_T(FILE_NAME3));
+	m_file.push_back(_T(FILE_NAME_SERVER1));
+	m_file.push_back(_T(FILE_NAME_SERVER2));
+	m_file.push_back(_T(FILE_NAME_SERVER3));
 }
 
 void CMFCServerDlg::UpdateListFile()
@@ -415,15 +415,40 @@ void CMFCServerDlg::UpdateListFile()
 	UpdateData(FALSE);
 }
 
-void CMFCServerDlg::SendFileToClient(SOCKET sk, bool bSendData)
+void CMFCServerDlg::SendFileToClient(SOCKET sk, bool bSendData, CString file_name)
 {
-
-	for (int i = 0; i < m_file.size(); i++)
+	if (!bSendData)
 	{
-		CString tmp = _T("SendFile\r\n") + m_file[i] + _T("\r\n");
-		mSend(sk, tmp);
+		for (int i = 0; i < m_file.size(); i++)
+		{
+			CString tmp = _T("SendFile\r\n") + m_file[i] + _T("\r\n");
+			mSend(sk, tmp);
+		}
+	}
+	else
+	{
+		char *fi_name = ConvertToChar(file_name);
+		std::ifstream fi;
+		fi.open(fi_name);
+		if (!fi.is_open())
+		{
+			MessageBox(_T("Error in opening file"), _T("Error"), MB_ICONERROR);
+			return;
+		}
+		CString c_data = _T("SendData\r\n");
+		while (!fi.eof())
+		{
+			char data[4096] = { 0 };
+			fi.read(data, sizeof(data));
+			c_data += CString(data) + _T("\r\n");
+			memset(data, 0, 4096);
+		}
+		mSend(sk, c_data);
+		fi.close();
+		delete[]fi_name;
 	}
 }
+
 
 
 void CMFCServerDlg::OnBnClickedBtnListen()
@@ -572,6 +597,56 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 					mSend(wParam, _T("used"));
 				}
 				
+			}
+
+			else if (res[0] == _T("Download"))
+			{
+				bool file_exist = false;
+				for (int i = 0; i < m_file.size(); i++)
+				{
+					
+					if (m_file[i].Compare(res[1]) == 0)
+					{
+						file_exist = true;
+					}
+				}
+
+				if (file_exist)
+				{
+					SendFileToClient(wParam, true, res[1]);
+					mSend(wParam, _T("DownloadSuccess\r\nThe file name doesn't exist\r\n"));
+				}
+				else
+				{
+					mSend(wParam, _T("DownloadError\r\nThe file name doesn't exist\r\n"));
+					break;
+				}
+
+				m_list_box_info.AddString(m_client[i].m_user_name + _T(" downloaded file ") + res[1]);
+			}
+			else if (res[0] == _T("Upload"))
+			{
+				m_file.push_back(res[1]);
+				char *file_down = ConvertToChar(res[1]);
+				std::ofstream fo;
+				fo.open(file_down);
+				if (!fo.is_open())
+				{
+					MessageBox(_T("Error in opening file database.txt"), _T("Error"), MB_ICONERROR);
+					break;
+				}
+				else
+				{
+					for (int i = 2; i < res.size(); i++)
+					{
+						char *tmp = ConvertToChar(res[i]);
+						fo << tmp;
+						delete[]tmp;
+					}
+				}
+				fo.close();
+				m_list_box_info.AddString(m_client[i].m_user_name + _T(" uploaded file ") + res[1]);
+				UpdateListFile();
 			}
 			break;
 		}

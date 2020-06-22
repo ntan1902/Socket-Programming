@@ -218,12 +218,19 @@ char * CMFCClientDlg::ConvertToChar(const CString & s)
 	return pAnsiString;
 }
 
+std::string CMFCClientDlg::ConvertToString(const CString & s)
+{
+	CT2A pszTmp(s);
+	std::string tmp(pszTmp);
+	return tmp;
+}
+
 void CMFCClientDlg::mSend(SOCKET sk, CString Command)
 {
 	int Len = Command.GetLength();
 	Len += Len;
-	PBYTE sendBuff = new BYTE[1000];
-	memset(sendBuff, 0, 1000);
+	PBYTE sendBuff = new BYTE[Len];
+	memset(sendBuff, 0, Len);
 	memcpy(sendBuff, (PBYTE)(LPCTSTR)Command, Len);
 	send(sk, (char*)&Len, sizeof(Len), 0);
 	send(sk, (char*)sendBuff, Len, 0);
@@ -235,8 +242,8 @@ int CMFCClientDlg::mRecv(SOCKET sk, CString & Command)
 	int buffLength;
 	recv(sk, (char*)&buffLength, sizeof(int), 0);
 
-	PBYTE buffer = new BYTE[1000];
-	memset(buffer, 0, 1000);
+	PBYTE buffer = new BYTE[buffLength];
+	memset(buffer, 0, buffLength);
 	recv(sk, (char*)buffer, buffLength, 0);
 	TCHAR* ttc = (TCHAR*)buffer;
 	Command = ttc;
@@ -272,7 +279,10 @@ void CMFCClientDlg::InitFile()
 
 void CMFCClientDlg::SendFileToServer(SOCKET sk, CString file_name)
 {
-	char *fi_name = ConvertToChar(file_name);
+	//char *fi_name = ConvertToChar(file_name);
+	
+	std::string fi_name = ConvertToString(file_name);
+	
 	std::ifstream fi;
 	fi.open(fi_name);
 	if (!fi.is_open())
@@ -283,14 +293,17 @@ void CMFCClientDlg::SendFileToServer(SOCKET sk, CString file_name)
 	CString c_data = _T("Upload\r\n") + file_name + _T("\r\n");
 	while (!fi.eof())
 	{
-		char data[4096] = { 0 };
+		/*char data[4096] = { 0 };
 		fi.read(data, sizeof(data));
 		c_data += CString(data) + _T("\r\n");
-		memset(data, 0, 4096);
+		memset(data, 0, 4096);*/
+		std::string str;
+		std::getline(fi, str, '\0');
+		c_data += CString(str.c_str()) + _T("\r\n");
 	}
 	mSend(sk, c_data);
 	fi.close();
-	delete[]fi_name;
+
 }
 
 
@@ -403,7 +416,9 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			}
 			else if (res[0] == _T("SendData"))
 			{
-				char *file_down = ConvertToChar(m_file_download);
+				CT2CA pszConvertedAnsiString(m_file_download);
+				std::string file_down(pszConvertedAnsiString);
+				
 				std::ofstream fo;
 				fo.open(file_down);
 				if (!fo.is_open())
@@ -415,14 +430,11 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				{
 					for (int i = 1; i < res.size(); i++)
 					{
-						char *tmp = ConvertToChar(res[i]);
+						std::string tmp = ConvertToString(res[i]);
 						fo << tmp;
-						delete[]tmp;
 					}
 				}
 				fo.close();
-
-				delete[]file_down;
 			}
 			else if (res[0] == _T("DownloadError"))
 			{

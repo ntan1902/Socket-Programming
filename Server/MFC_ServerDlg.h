@@ -5,6 +5,7 @@
 #pragma once
 #include <iostream>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 #include <afxinet.h>
 #include <ws2tcpip.h>
@@ -59,6 +60,7 @@ public:
 	void Listen();
 	void NonBlocking();
 	char* ConvertToChar(const CString &s);
+	std::string ConvertToString(const CString &s);
 	void mSend(SOCKET sk, CString Command);
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);

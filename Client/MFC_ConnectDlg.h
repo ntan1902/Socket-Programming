@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <afxinet.h>
 #include <ws2tcpip.h>
-
+#include <string>
 #define IP "127.0.0.1"
 
 #pragma comment(lib, "ws2_32.lib")
@@ -37,7 +37,7 @@ public:
 	void CreateSocket();
 	void Connect();
 	void RunProgressControl();
-	char* ConvertToChar(const CString &s);
+	std::string ConvertToString(const CString &s);
 	void Reset();
 	afx_msg void OnBnClickedBtnConnect();
 protected:

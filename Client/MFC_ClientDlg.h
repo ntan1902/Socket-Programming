@@ -9,10 +9,9 @@
 #include <string.h>
 #include <afxinet.h>
 #include <ws2tcpip.h>
-#include <string.h>
 #include <vector>
 #include <time.h>
-
+#include <string>
 #pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable : 4996)
 
@@ -54,6 +53,7 @@ public:
 	void NonBlocking();
 	void RunProgressControl();
 	char* ConvertToChar(const CString &s);
+	std::string ConvertToString(const CString &s);
 	void mSend(SOCKET sk, CString Command);
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);

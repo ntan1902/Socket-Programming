@@ -95,9 +95,8 @@ void MFC_ConnectDlg::Connect()
 	m_server_addr.sin_family = AF_INET;
 	m_server_addr.sin_port = htons(1234);
 
-	char *ip = ConvertToChar(m_ip_server);
-	inet_pton(AF_INET, ip, &m_server_addr.sin_addr);
-	delete[]ip;
+	std::string ip = ConvertToString(m_ip_server);
+	inet_pton(AF_INET, ip.c_str(), &m_server_addr.sin_addr);
 
 	int e = connect(m_client_sock, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
 	
@@ -136,13 +135,11 @@ void MFC_ConnectDlg::RunProgressControl()
 	}
 }
 
-char * MFC_ConnectDlg::ConvertToChar(const CString & s)
+std::string MFC_ConnectDlg::ConvertToString(const CString & s)
 {
-	int nSize = s.GetLength();
-	char *pAnsiString = new char[nSize + 1];
-	memset(pAnsiString, 0, nSize + 1);
-	wcstombs(pAnsiString, s, nSize + 1);
-	return pAnsiString;
+	CT2A pszTmp(s);
+	std::string tmp(pszTmp);
+	return tmp;
 }
 
 void MFC_ConnectDlg::Reset()

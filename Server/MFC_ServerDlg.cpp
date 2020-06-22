@@ -190,9 +190,9 @@ void CMFCServerDlg::InputDatabaseAccount()
 	}
 	while (!fi.eof())
 	{
-		char user[100], pass[100];
+		std::string user, pass;
 		fi >> user >> pass;
-		m_account.insert(std::make_pair(CString(user), CString(pass)));
+		m_account.insert(std::make_pair(CString(user.c_str()), CString(pass.c_str())));
 	}
 
 }
@@ -216,11 +216,10 @@ void CMFCServerDlg::OutputDatabaseAccount(CString user, CString pass)
 			fo << ConvertToChar(itr->first) << " " << ConvertToChar(itr->second) << '\n';
 		}*/
 
-		char *u = ConvertToChar(user);
-		char *p = ConvertToChar(pass);
+		std::string u = ConvertToString(user);
+		std::string p = ConvertToString(pass);
 		fo << "\n" << u << " " << p;
-		delete[]u;
-		delete[]p;
+		
 	}
 	fo.close();
 }
@@ -291,12 +290,19 @@ char * CMFCServerDlg::ConvertToChar(const CString & s)
 	return pAnsiString;
 }
 
+std::string CMFCServerDlg::ConvertToString(const CString & s)
+{
+	CT2CA pszTmp(s);
+	std::string tmp(pszTmp);
+	return tmp;
+}
+
 void CMFCServerDlg::mSend(SOCKET sk, CString Command)
 {
 	int Len = Command.GetLength();
 	Len += Len;
-	PBYTE sendBuff = new BYTE[1000];
-	memset(sendBuff, 0, 1000);
+	PBYTE sendBuff = new BYTE[Len];
+	memset(sendBuff, 0, Len);
 	memcpy(sendBuff, (PBYTE)(LPCTSTR)Command, Len);
 	send(sk, (char*)&Len, sizeof(Len), 0);
 	send(sk, (char*)sendBuff, Len, 0);
@@ -427,7 +433,9 @@ void CMFCServerDlg::SendFileToClient(SOCKET sk, bool bSendData, CString file_nam
 	}
 	else
 	{
-		char *fi_name = ConvertToChar(file_name);
+		//char *fi_name = ConvertToChar(file_name);
+		std::string fi_name = ConvertToString(file_name);
+		
 		std::ifstream fi;
 		fi.open(fi_name);
 		if (!fi.is_open())
@@ -438,14 +446,18 @@ void CMFCServerDlg::SendFileToClient(SOCKET sk, bool bSendData, CString file_nam
 		CString c_data = _T("SendData\r\n");
 		while (!fi.eof())
 		{
-			char data[4096] = { 0 };
+			/*char data[4096] = { 0 };
 			fi.read(data, sizeof(data));
 			c_data += CString(data) + _T("\r\n");
-			memset(data, 0, 4096);
+			memset(data, 0, 4096);*/
+			std::string str;
+			std::getline(fi, str, '\0');
+			c_data += CString(str.c_str()) + _T("\r\n");
+
+
 		}
 		mSend(sk, c_data);
 		fi.close();
-		delete[]fi_name;
 	}
 }
 
@@ -627,7 +639,9 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			else if (res[0] == _T("Upload"))
 			{
 				m_file.push_back(res[1]);
-				char *file_down = ConvertToChar(res[1]);
+				//char *file_down = ConvertToChar(res[1]);
+				
+				std::string file_down = ConvertToString(res[1]);
 				std::ofstream fo;
 				fo.open(file_down);
 				if (!fo.is_open())
@@ -639,9 +653,11 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				{
 					for (int i = 2; i < res.size(); i++)
 					{
-						char *tmp = ConvertToChar(res[i]);
+						/*char *tmp = ConvertToChar(res[i]);
 						fo << tmp;
-						delete[]tmp;
+						delete[]tmp;*/
+						std::string tmp = ConvertToString(res[i]);
+						fo << tmp;
 					}
 				}
 				fo.close();

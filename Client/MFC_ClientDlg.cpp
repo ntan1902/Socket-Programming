@@ -68,9 +68,7 @@ void CMFCClientDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_PRG_CTRL, m_prg_ctrl);
 	DDX_Text(pDX, IDC_EDT_USER, m_user_name);
 	DDX_Text(pDX, IDC_EDT_PASS, m_pass);
-	DDX_Control(pDX, IDC_LIST_FILES_SERVER, m_list_box_files);
-	DDX_Text(pDX, IDC_EDT_DOWNLOAD, m_file_download);
-	DDX_Text(pDX, IDC_EDT_UPLOAD, m_file_upload);
+	DDX_Control(pDX, IDC_LIST_FILES_SERVER, m_list_files);
 }
 
 BEGIN_MESSAGE_MAP(CMFCClientDlg, CDialogEx)
@@ -121,6 +119,10 @@ BOOL CMFCClientDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 	m_list_box_info.AddString(_T("[+]Connected to server"));
+
+	m_list_files.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);
+	m_list_files.InsertColumn(0, _T("File name"), LVCFMT_CENTER, 500);
+
 	UpdateData(FALSE);
 	InitFile();
 	NonBlocking();
@@ -235,6 +237,7 @@ void CMFCClientDlg::mSend(SOCKET sk, CString Command)
 	send(sk, (char*)&Len, sizeof(Len), 0);
 	send(sk, (char*)sendBuff, Len, 0);
 	delete[] sendBuff;
+	
 }
 
 int CMFCClientDlg::mRecv(SOCKET sk, CString & Command)
@@ -242,18 +245,20 @@ int CMFCClientDlg::mRecv(SOCKET sk, CString & Command)
 	int buffLength;
 	recv(sk, (char*)&buffLength, sizeof(int), 0);
 
-	PBYTE buffer = new BYTE[buffLength];
-	memset(buffer, 0, buffLength);
+	PBYTE buffer = new BYTE[1000];
+	memset(buffer, 0, 1000);
 	recv(sk, (char*)buffer, buffLength, 0);
 	TCHAR* ttc = (TCHAR*)buffer;
 	Command = ttc;
 
 
 	if (Command.GetLength() == 0)
+	{
 		return -1;
-
+	}
 	delete[]buffer;
 	return 0;
+	
 }
 
 void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
@@ -276,36 +281,6 @@ void CMFCClientDlg::InitFile()
 	m_file.push_back(_T(FILE_NAME_CLIENT2));
 
 }
-
-void CMFCClientDlg::SendFileToServer(SOCKET sk, CString file_name)
-{
-	//char *fi_name = ConvertToChar(file_name);
-	
-	std::string fi_name = ConvertToString(file_name);
-	
-	std::ifstream fi;
-	fi.open(fi_name);
-	if (!fi.is_open())
-	{
-		MessageBox(_T("Error in opening file"), _T("Error"), MB_ICONERROR);
-		return;
-	}
-	CString c_data = _T("Upload\r\n") + file_name + _T("\r\n");
-	while (!fi.eof())
-	{
-		/*char data[4096] = { 0 };
-		fi.read(data, sizeof(data));
-		c_data += CString(data) + _T("\r\n");
-		memset(data, 0, 4096);*/
-		std::string str;
-		std::getline(fi, str, '\0');
-		c_data += CString(str.c_str()) + _T("\r\n");
-	}
-	mSend(sk, c_data);
-	fi.close();
-
-}
-
 
 void CMFCClientDlg::OnBnClickedBtnLogin()
 {
@@ -351,7 +326,7 @@ void CMFCClientDlg::OnBnClickedBtnLogout()
 		m_user_name = _T("");
 		m_pass = _T("");
 		m_list_box_info.AddString(_T("Logout successfully"));
-		m_list_box_files.ResetContent();
+		m_list_files.DeleteAllItems();
 		UpdateData(FALSE);
 
 		mSend(m_client_sock, _T("Logout\r\n"));
@@ -412,29 +387,14 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 			else if (res[0] == _T("SendFile"))
 			{
-				m_list_box_files.AddString(res[1]);
+				m_list_files.InsertItem(0, res[1]);
 			}
-			else if (res[0] == _T("SendData"))
+			else if (res[0] == _T("Download"))
 			{
-				CT2CA pszConvertedAnsiString(m_file_download);
-				std::string file_down(pszConvertedAnsiString);
-				
-				std::ofstream fo;
-				fo.open(file_down);
-				if (!fo.is_open())
+				if(receiveFile());
 				{
-					MessageBox(_T("Error in opening file database.txt"), _T("Error"), MB_ICONERROR);
-					break;
+					int p = 1;
 				}
-				else
-				{
-					for (int i = 1; i < res.size(); i++)
-					{
-						std::string tmp = ConvertToString(res[i]);
-						fo << tmp;
-					}
-				}
-				fo.close();
 			}
 			else if (res[0] == _T("DownloadError"))
 			{
@@ -455,7 +415,7 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 		{
 
 			m_list_box_info.AddString(_T("[+]Server disconnected"));
-			m_list_box_files.ResetContent();
+			m_list_files.DeleteAllItems();
 			closesocket(m_client_sock);
 			GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
 			GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
@@ -468,6 +428,113 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 	}
 	return 0;
+}
+
+bool CMFCClientDlg::receiveFile()
+{
+	if (AfxSocketInit() == FALSE)
+	{
+		return FALSE;
+	}
+
+	CSocket Client;
+	Client.Create();
+
+	if (Client.Connect(_T("127.0.0.1"), 5000) != 0)
+	{
+		
+		// Khai bao
+		int file_size = 0, bytes_recevived, bytes_to_receive;
+		CT2CA pszConvertedAnsiString(m_file_download);
+		std::string file_down(pszConvertedAnsiString);
+		std::ofstream fo(file_down, std::ios::binary);
+
+		// Nhan kich thuoc file
+		int size = 0;
+		Client.Receive((char*)&size, sizeof(size));
+
+		char *str = new char[size + 1];
+		//std::string str;
+		int bytes_recv, bytes_missed;
+		do
+		{
+			bytes_recv = Client.Receive(str, size + 1);
+			bytes_missed = size  - bytes_recv;
+			if (bytes_missed > 0)
+			{
+				int sent = 0;
+				Client.Send((char*)&sent, sizeof(int));
+			}
+		} while (bytes_missed > 0);
+		//bytes_recv = Client.Receive(str, size + 1);
+
+		fo.write(str, size + 1);
+
+		delete[]str;
+		fo.close();
+		///-------------------------------------------------------------------------------
+	}
+	else
+	{
+		//cout << "Khong the ket noi den Server !!!" << endl;
+	}
+
+	// Dong ket noi
+	Client.Close();
+	return 1;
+}
+
+bool CMFCClientDlg::sendFile()
+{
+	if (AfxSocketInit() == FALSE)
+	{
+		return FALSE;
+	}
+
+	CSocket Client;
+	Client.Create();
+
+	if (Client.Connect(_T("127.0.0.1"), 5000) != 0)
+	{
+
+		// Khai bao
+		int file_size;
+		std::string file_name = ConvertToString(m_file_upload);
+		std::ifstream fi(file_name, std::ios::binary);
+		if (!fi)
+			return 0;
+
+		// Lay kich thuoc file
+		fi.seekg(0, std::ios::end);
+		file_size = fi.tellg();
+		fi.seekg(0, std::ios::beg);
+
+		// Gui kich thuoc file
+		Client.Send((char*)&file_size, sizeof(file_size));
+
+		std::stringstream strStream;
+		strStream << fi.rdbuf();
+		std::string str = strStream.str();
+
+		int sent;
+		do
+		{
+			Client.Send((char*)str.c_str(), file_size);
+			Client.Receive((char*)&sent, sizeof(int));
+		} while (sent == 0);
+
+		fi.close();
+		///-------------------------------------------------------------------------------
+	}
+	else
+	{
+		//cout << "Khong the ket noi den Server !!!" << endl;
+	}
+
+	// Dong ket noi
+	Client.Close();
+	
+	return 1;
 }
 
 void CMFCClientDlg::OnBnClickedBtnRegister()
@@ -488,8 +555,25 @@ void CMFCClientDlg::OnBnClickedBtnDownload()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
-	CString tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
-	mSend(m_client_sock, tmp);
+
+	int nItem = 0; //Represents the row number inside CListCtrl
+	CString tmp;
+	for (nItem = 0; nItem < m_list_files.GetItemCount(); nItem++)
+	{
+		BOOL bChecked = m_list_files.GetCheck(nItem);
+		if (bChecked == 1)
+		{
+			m_file_download = m_list_files.GetItemText(nItem, 0);
+			tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
+			mSend(m_client_sock, tmp);
+			m_list_files.SetCheck(nItem, FALSE);
+		}
+	}
+
+
+
+	/*CString tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
+	mSend(m_client_sock, tmp);*/
 	UpdateData(FALSE);
 }
 
@@ -498,26 +582,17 @@ void CMFCClientDlg::OnBnClickedBtnUpload()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
-	bool file_exist = false;
-	for (int i = 0; i < m_file.size(); i++)
-	{
 
-		if (m_file[i].Compare(m_file_upload) == 0)
-		{
-			file_exist = true;
-		}
-	}
-
-	if (file_exist)
+	CFileDialog t(true);
+	if (t.DoModal() == IDOK)
 	{
-		SendFileToServer(m_client_sock, m_file_upload);
+		m_file_upload = t.GetFileName();
+		CString m_file_path = t.GetPathName();
+		mSend(m_client_sock, _T("Upload\r\n") + m_file_upload + _T("\r\n") + m_file_path + _T("\r\n"));
+		sendFile();
 		MessageBox(m_file_upload + _T(" is uploaded successfully!"), _T("Success"), MB_OK);
 		m_file_upload = _T("");
-	}
-	else
-	{
-		MessageBox(_T("The file name doesn't exist"), _T("Error"), MB_ICONERROR);
-		m_file_upload = _T("");
+
 	}
 
 	UpdateData(FALSE);

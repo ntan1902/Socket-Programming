@@ -14,6 +14,7 @@
 #define new DEBUG_NEW
 #endif
 
+std::string CMFCServerDlg::file_name;
 
 // CAboutDlg dialog used for App About
 
@@ -63,7 +64,7 @@ void CMFCServerDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LIST_INFO, m_list_box_info);
 	DDX_Control(pDX, IDC_LIST_CLIENTS, m_list_clients);
-	DDX_Control(pDX, IDC_LIST_FILES, m_list_box_files);
+	DDX_Control(pDX, IDC_LIST_FILES, m_list_files);
 }
 
 BEGIN_MESSAGE_MAP(CMFCServerDlg, CDialogEx)
@@ -74,6 +75,7 @@ BEGIN_MESSAGE_MAP(CMFCServerDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_LISTEN, &CMFCServerDlg::OnBnClickedBtnListen)
 	ON_BN_CLICKED(IDCANCEL, &CMFCServerDlg::OnBnClickedCancel)
 	ON_BN_CLICKED(IDC_BTN_CLEAR, &CMFCServerDlg::OnBnClickedBtnClear)
+	ON_BN_CLICKED(IDC_BTN_ADD_FILES, &CMFCServerDlg::OnBnClickedBtnAddFiles)
 END_MESSAGE_MAP()
 
 
@@ -119,7 +121,11 @@ BOOL CMFCServerDlg::OnInitDialog()
 	m_list_clients.InsertColumn(1, _T("Connection"), LVCFMT_LEFT, 110);
 	m_list_clients.InsertColumn(2, _T("Status"), LVCFMT_LEFT, 110);
 
-	InitFile();
+
+	m_list_files.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);
+	m_list_files.InsertColumn(0, _T("File name"), LVCFMT_CENTER, 500);
+
+	//InitFile();
 	UpdateListFile();
 
 	NonBlocking();
@@ -307,6 +313,7 @@ void CMFCServerDlg::mSend(SOCKET sk, CString Command)
 	send(sk, (char*)&Len, sizeof(Len), 0);
 	send(sk, (char*)sendBuff, Len, 0);
 	delete[] sendBuff;
+
 }
 
 
@@ -314,8 +321,6 @@ void CMFCServerDlg::mSend(SOCKET sk, CString Command)
 
 int CMFCServerDlg::mRecv(SOCKET sk, CString &Command)
 {
-	
-	int buffLength;
 	recv(sk, (char*)&buffLength, sizeof(int), 0);
 
 	PBYTE buffer = new BYTE[1000];
@@ -331,6 +336,7 @@ int CMFCServerDlg::mRecv(SOCKET sk, CString &Command)
 	}
 	delete[]buffer;
 	return 0;
+
 }
 
 void CMFCServerDlg::Split(CString src, std::vector<CString> &des)
@@ -404,61 +410,72 @@ void CMFCServerDlg::UpdateListClient()
 	}
 }
 
-void CMFCServerDlg::InitFile()
-{
-	m_file.push_back(_T(FILE_NAME_SERVER1));
-	m_file.push_back(_T(FILE_NAME_SERVER2));
-	m_file.push_back(_T(FILE_NAME_SERVER3));
-}
+//void CMFCServerDlg::InitFile()
+//{
+//	std::ifstream f;
+//	f.open("filePath.txt");
+//	if (f)
+//	{
+//		while (!f.eof())
+//		{
+//			std::string line = "";
+//			getline(f, line);
+//			if (line != "")
+//			{
+//				std::string fileName = getNameOfFile(line);
+//				CA2T str(fileName.c_str());
+//
+//				m_file.push_back(CString(fileName.c_str()));
+//
+//				
+//			}
+//		}
+//		f.close();
+//	}
+//}
 
 void CMFCServerDlg::UpdateListFile()
 {
-	m_list_box_files.ResetContent();
+	m_list_files.DeleteAllItems();
 	for (int i = 0; i < m_file.size(); i++)
 	{
-		m_list_box_files.AddString(m_file[i]);
+		m_list_files.InsertItem(0, m_file[i]);
 	}
 	UpdateData(FALSE);
 }
 
-void CMFCServerDlg::SendFileToClient(SOCKET sk, bool bSendData, CString file_name)
+//void CMFCServerDlg::UploadPathFile(CString path)
+//{
+//	std::string strFilePath = ConvertToString(path);
+//
+//	std::ofstream f;
+//	f.open("filePath.txt", std::ios::app);
+//	f << strFilePath << std::endl;
+//	f.close();
+//}
+
+void CMFCServerDlg::SendFileNameToClient(SOCKET sk)
 {
-	if (!bSendData)
+	
+	for (int i = 0; i < m_file.size(); i++)
 	{
-		for (int i = 0; i < m_file.size(); i++)
-		{
-			CString tmp = _T("SendFile\r\n") + m_file[i] + _T("\r\n");
-			mSend(sk, tmp);
-		}
+		CString tmp = _T("SendFile\r\n") + m_file[i] + _T("\r\n");
+		mSend(sk, tmp);
 	}
-	else
+	
+}
+
+std::string CMFCServerDlg::getNameOfFile(std::string s)
+{
+	std::string res = "";
+	for (int i = s.size() - 1; i >= 0; i--)
 	{
-		//char *fi_name = ConvertToChar(file_name);
-		std::string fi_name = ConvertToString(file_name);
-		
-		std::ifstream fi;
-		fi.open(fi_name);
-		if (!fi.is_open())
-		{
-			MessageBox(_T("Error in opening file"), _T("Error"), MB_ICONERROR);
-			return;
-		}
-		CString c_data = _T("SendData\r\n");
-		while (!fi.eof())
-		{
-			/*char data[4096] = { 0 };
-			fi.read(data, sizeof(data));
-			c_data += CString(data) + _T("\r\n");
-			memset(data, 0, 4096);*/
-			std::string str;
-			std::getline(fi, str, '\0');
-			c_data += CString(str.c_str()) + _T("\r\n");
-
-
-		}
-		mSend(sk, c_data);
-		fi.close();
+		if (s[i] == '\\') 
+			break;
+		res = s[i] + res;
 	}
+	return res;
+	
 }
 
 
@@ -527,8 +544,6 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 		{
 			int i = FindClient(wParam);
 			CString src;
-			std::vector<CString> res;
-			//res.resize(1000);
 			if (mRecv(wParam, src) < 0)
 			{
 				break;
@@ -554,7 +569,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 						}
 					}
 					UpdateListClient();
-					SendFileToClient(wParam, false);
+					SendFileNameToClient(wParam);
 
 				}
 				else
@@ -625,45 +640,35 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 				if (file_exist)
 				{
-					SendFileToClient(wParam, true, res[1]);
+					//SendFileToClient(wParam, true, res[1]);
+					mSend(wParam, _T("Download\r\n"));
+					file_name = ConvertToString(res[1]);
+					AfxBeginThread(sendFile, 0);
 					mSend(wParam, _T("DownloadSuccess\r\nThe file name doesn't exist\r\n"));
 				}
 				else
 				{
 					mSend(wParam, _T("DownloadError\r\nThe file name doesn't exist\r\n"));
+					res.clear();
 					break;
 				}
 
-				m_list_box_info.AddString(m_client[i].m_user_name + _T(" downloaded file ") + res[1]);
+				m_list_box_info.AddString(m_client[i].m_user_name + _T(" download file ") + res[1]);
 			}
 			else if (res[0] == _T("Upload"))
 			{
 				m_file.push_back(res[1]);
-				//char *file_down = ConvertToChar(res[1]);
+				file_name = ConvertToString(res[1]);
+				AfxBeginThread(receiveFile, 0);
 				
-				std::string file_down = ConvertToString(res[1]);
-				std::ofstream fo;
-				fo.open(file_down);
-				if (!fo.is_open())
-				{
-					MessageBox(_T("Error in opening file database.txt"), _T("Error"), MB_ICONERROR);
-					break;
-				}
-				else
-				{
-					for (int i = 2; i < res.size(); i++)
-					{
-						/*char *tmp = ConvertToChar(res[i]);
-						fo << tmp;
-						delete[]tmp;*/
-						std::string tmp = ConvertToString(res[i]);
-						fo << tmp;
-					}
-				}
-				fo.close();
-				m_list_box_info.AddString(m_client[i].m_user_name + _T(" uploaded file ") + res[1]);
+				//UploadPathFile(res[1]);
+
+
+				m_list_box_info.AddString(m_client[i].m_user_name + _T(" upload file ") + res[1]);
 				UpdateListFile();
 			}
+
+			res.clear();
 			break;
 		}
 
@@ -683,4 +688,149 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	return 0;
+}
+
+UINT CMFCServerDlg::sendFile(LPVOID pParam)
+{
+	if (AfxSocketInit() == FALSE)
+	{
+	
+		return FALSE;
+	}
+
+	CSocket Server; //cha
+							  
+	if (Server.Create(5000) == 0) 
+	{
+		return FALSE;
+	}
+	else
+	{
+		
+
+		if (Server.Listen(32) == FALSE)
+		{
+			
+			Server.Close();
+			return FALSE;
+		}
+
+	}
+
+
+	CSocket Client;
+	if (Server.Accept(Client))
+	{
+		int file_size;
+
+		std::ifstream fi(file_name, std::ios::binary);
+		if (!fi)
+			return 0;
+
+		// Get size of file
+		fi.seekg(0, std::ios::end);
+		file_size = fi.tellg();
+		fi.seekg(0, std::ios::beg);
+
+		// Send size of file
+		Client.Send((char*)&file_size, sizeof(file_size));
+
+		// Send data
+		std::stringstream strStream;
+		strStream << fi.rdbuf();
+		std::string str = strStream.str();
+
+		int sent;
+		do
+		{
+			Client.Send((char*)str.c_str(), file_size);
+			Client.Receive((char*)&sent, sizeof(int));
+		} while (sent == 0);
+		
+		fi.close();
+		///------------------------------------------------------------------------------------
+	}
+	Client.Close();
+	Server.Close();
+}
+
+UINT CMFCServerDlg::receiveFile(LPVOID pParam)
+{
+	if (AfxSocketInit() == FALSE)
+	{
+		
+		return FALSE;
+	}
+
+	CSocket Server;
+							  
+	if (Server.Create(5000) == 0) 
+	{
+		
+		return FALSE;
+	}
+	else
+	{
+
+		if (Server.Listen(32) == FALSE)
+		{
+			Server.Close();
+			return FALSE;
+		}
+
+	}
+
+
+	CSocket Client;
+	if (Server.Accept(Client))
+	{
+		int file_size = 0, bytes_recevived, bytes_to_receive;
+		
+		std::ofstream fo(file_name, std::ios::binary);
+
+		// Nhan kich thuoc file
+		int size = 0;
+		Client.Receive((char*)&size, sizeof(size));
+
+		char *str = new char[size + 1]{ 0 };
+		//std::string str;
+		int bytes_recv, bytes_missed;
+		do
+		{
+			bytes_recv = Client.Receive(str, size + 1);
+			bytes_missed = size - bytes_recv;
+			if (bytes_missed > 0)
+			{
+				int sent = 0;
+				Client.Send((char*)&sent, sizeof(int));
+			}
+		} while (bytes_missed > 0);
+
+		fo.write(str, size + 1);
+
+		delete[]str;
+		fo.close();
+		///------------------------------------------------------------------------------------
+	}
+	Client.Close();
+	Server.Close();
+}
+
+
+void CMFCServerDlg::OnBnClickedBtnAddFiles()
+{
+	// TODO: Add your control notification handler code here
+	CFileDialog t(true);
+	if (t.DoModal() == IDOK)
+	{
+		CString tmp = t.GetFileName();
+		m_list_files.InsertItem(0, tmp);
+		m_file.push_back(tmp);
+		for (int i = 0; i < m_client.size(); i++)
+		{
+			if(m_client[i].m_bIsLogin)
+				mSend(m_client[i].m_client_sock, _T("SendFile\r\n") + tmp + _T("\r\n"));
+		}
+		//UploadPathFile(t.GetPathName());
+	}
 }

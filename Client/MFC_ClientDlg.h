@@ -5,19 +5,20 @@
 #pragma once
 #include <iostream>
 #include <fstream>
-#include <stdlib.h>
-#include <string.h>
+//#include <stdlib.h>
+//#include <string.h>
 #include <afxinet.h>
 #include <ws2tcpip.h>
 #include <vector>
 #include <time.h>
 #include <string>
+#include <sstream>
 #pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable : 4996)
 
 #define WM_SOCKET WM_USER+1
 #define FILE_NAME_CLIENT1 "Data_Client1.txt"
-#define FILE_NAME_CLIENT2 "Data_Client2.txt"
+#define FILE_NAME_CLIENT2 "W.docx"
 
 
 // CMFCClientDlg dialog
@@ -58,7 +59,6 @@ public:
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);
 	void InitFile();
-	void SendFileToServer(SOCKET sk, CString file_name = _T(""));
 
 	afx_msg void OnBnClickedBtnLogin();
 	afx_msg void OnBnClickedCancel();
@@ -68,7 +68,10 @@ public:
 	afx_msg void OnBnClickedBtnDownload();
 	afx_msg void OnBnClickedBtnUpload();
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
+	bool receiveFile();
+	bool sendFile();
 protected:
+	int buffLength;
 	CListBox m_list_box_info;
 	SOCKET m_client_sock;
 	CProgressCtrl m_prg_ctrl;
@@ -76,7 +79,7 @@ protected:
 	CString m_pass;
 	CString m_file_download;
 	CString m_file_upload;
-	CListBox m_list_box_files;
+	CListCtrl m_list_files;
 	std::vector<CString> m_file;
 
 

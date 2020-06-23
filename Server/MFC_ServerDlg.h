@@ -73,10 +73,14 @@ public:
 	bool CheckRegister(CString user);
 	int FindClient(SOCKET sk);
 	void UpdateListClient();
-	void InitFile();
 	void UpdateListFile();
-	void UploadPathFile(CString path);
+
+	/*Send all file to client*/
 	void SendFileNameToClient(SOCKET sk);
+
+	/*Send upload file to all clients*/
+	void SendFileNameToAllClient(CString file);
+
 	std::string getNameOfFile(std::string s);
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();

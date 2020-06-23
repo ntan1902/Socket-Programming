@@ -122,7 +122,7 @@ BOOL CMFCServerDlg::OnInitDialog()
 	m_list_clients.InsertColumn(2, _T("Status"), LVCFMT_LEFT, 110);
 
 
-	m_list_files.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);
+	m_list_files.SetExtendedStyle(LVS_EX_FULLROWSELECT);
 	m_list_files.InsertColumn(0, _T("File name"), LVCFMT_CENTER, 500);
 
 	//InitFile();
@@ -410,29 +410,6 @@ void CMFCServerDlg::UpdateListClient()
 	}
 }
 
-//void CMFCServerDlg::InitFile()
-//{
-//	std::ifstream f;
-//	f.open("filePath.txt");
-//	if (f)
-//	{
-//		while (!f.eof())
-//		{
-//			std::string line = "";
-//			getline(f, line);
-//			if (line != "")
-//			{
-//				std::string fileName = getNameOfFile(line);
-//				CA2T str(fileName.c_str());
-//
-//				m_file.push_back(CString(fileName.c_str()));
-//
-//				
-//			}
-//		}
-//		f.close();
-//	}
-//}
 
 void CMFCServerDlg::UpdateListFile()
 {
@@ -444,16 +421,6 @@ void CMFCServerDlg::UpdateListFile()
 	UpdateData(FALSE);
 }
 
-//void CMFCServerDlg::UploadPathFile(CString path)
-//{
-//	std::string strFilePath = ConvertToString(path);
-//
-//	std::ofstream f;
-//	f.open("filePath.txt", std::ios::app);
-//	f << strFilePath << std::endl;
-//	f.close();
-//}
-
 void CMFCServerDlg::SendFileNameToClient(SOCKET sk)
 {
 	
@@ -463,6 +430,15 @@ void CMFCServerDlg::SendFileNameToClient(SOCKET sk)
 		mSend(sk, tmp);
 	}
 	
+}
+
+void CMFCServerDlg::SendFileNameToAllClient(CString file)
+{
+	for (int i = 0; i < m_client.size(); i++)
+	{
+		if (m_client[i].m_bIsLogin)
+			mSend(m_client[i].m_client_sock, _T("SendFile\r\n") + file + _T("\r\n"));
+	}
 }
 
 std::string CMFCServerDlg::getNameOfFile(std::string s)
@@ -569,6 +545,8 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 						}
 					}
 					UpdateListClient();
+					
+					/*Send all file of server to client*/
 					SendFileNameToClient(wParam);
 
 				}
@@ -596,7 +574,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 					{
 						if (j != i && m_client[j].m_bIsLogin)
 						{
-							mSend(m_client[j].m_client_sock, _T("Logout\r\n") + m_client[i].m_user_name + _T("\r\n"));
+							mSend(m_client[j].m_client_sock, _T("OtherClientLogout\r\n") + m_client[i].m_user_name + _T("\r\n"));
 						}
 					}
 
@@ -657,7 +635,17 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			}
 			else if (res[0] == _T("Upload"))
 			{
-				m_file.push_back(res[1]);
+				bool add_file = true;
+				for (int i = 0; i < m_file.size(); i++)
+				{
+					if (m_file[i] == res[1])
+					{
+						add_file = false;
+					}
+				}
+				if(add_file)
+					m_file.push_back(res[1]);
+				
 				file_name = ConvertToString(res[1]);
 				AfxBeginThread(receiveFile, 0);
 				
@@ -666,6 +654,9 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 				m_list_box_info.AddString(m_client[i].m_user_name + _T(" upload file ") + res[1]);
 				UpdateListFile();
+				
+				/*Send upload file to all clients*/
+				SendFileNameToAllClient(res[1]);
 			}
 
 			res.clear();
@@ -826,11 +817,9 @@ void CMFCServerDlg::OnBnClickedBtnAddFiles()
 		CString tmp = t.GetFileName();
 		m_list_files.InsertItem(0, tmp);
 		m_file.push_back(tmp);
-		for (int i = 0; i < m_client.size(); i++)
-		{
-			if(m_client[i].m_bIsLogin)
-				mSend(m_client[i].m_client_sock, _T("SendFile\r\n") + tmp + _T("\r\n"));
-		}
+
+		/*Send file to all clients*/
+		SendFileNameToAllClient(tmp);
 		//UploadPathFile(t.GetPathName());
 	}
 }

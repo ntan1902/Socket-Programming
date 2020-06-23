@@ -42,4 +42,6 @@ public:
 	afx_msg void OnBnClickedBtnConnect();
 protected:
 	CProgressCtrl m_prg_ctrl;
+public:
+	afx_msg void OnBnClickedCancel();
 };

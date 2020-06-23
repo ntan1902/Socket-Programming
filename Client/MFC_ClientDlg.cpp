@@ -118,6 +118,10 @@ BOOL CMFCClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	GetDlgItem(IDC_LIST_FILES_SERVER)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(FALSE);
+
 	m_list_box_info.AddString(_T("[+]Connected to server"));
 
 	m_list_files.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);
@@ -323,6 +327,12 @@ void CMFCClientDlg::OnBnClickedBtnLogout()
 		GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(TRUE);
 		GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
 		GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDT_USER)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDT_PASS)->EnableWindow(TRUE);
+		GetDlgItem(IDC_LIST_FILES_SERVER)->EnableWindow(FALSE);
+		GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(FALSE);
+		GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(FALSE);
+
 		m_user_name = _T("");
 		m_pass = _T("");
 		m_list_box_info.AddString(_T("Logout successfully"));
@@ -357,9 +367,15 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			{
 				/*Valid login*/
 				m_list_box_info.AddString(_T("Login successfully!"));
+				GetDlgItem(IDC_LIST_FILES_SERVER)->EnableWindow(TRUE);
 				GetDlgItem(IDC_BTN_LOGIN)->EnableWindow(FALSE);
 				GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(TRUE);
 				GetDlgItem(IDC_BTN_REGISTER)->EnableWindow(FALSE);
+				GetDlgItem(IDC_EDT_USER)->EnableWindow(FALSE);
+				GetDlgItem(IDC_EDT_PASS)->EnableWindow(FALSE);
+				GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(TRUE);
+				GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(TRUE);
+
 
 			}
 			else if (res[0] == _T("Invalid"))
@@ -379,7 +395,7 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				m_list_box_info.AddString(res[1] + _T(" login"));
 
 			}
-			else if (res[0] == _T("Logout"))
+			else if (res[0] == _T("OtherClientLogout"))
 			{
 				/*Other client logout*/
 				m_list_box_info.AddString(res[1] + _T(" logout"));
@@ -404,6 +420,8 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			else if (res[0] == _T("DownloadSuccess"))
 			{
 				MessageBox(m_file_download + _T(" is downloaded successfully!"), _T("Success"), MB_OK);
+				GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(TRUE);
+
 				m_file_download = _T("");
 			}
 
@@ -555,7 +573,8 @@ void CMFCClientDlg::OnBnClickedBtnDownload()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
-
+	GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(FALSE);
+	
 	int nItem = 0; //Represents the row number inside CListCtrl
 	CString tmp;
 	for (nItem = 0; nItem < m_list_files.GetItemCount(); nItem++)
@@ -582,7 +601,7 @@ void CMFCClientDlg::OnBnClickedBtnUpload()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
-
+	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(FALSE);
 	CFileDialog t(true);
 	if (t.DoModal() == IDOK)
 	{
@@ -591,6 +610,8 @@ void CMFCClientDlg::OnBnClickedBtnUpload()
 		mSend(m_client_sock, _T("Upload\r\n") + m_file_upload + _T("\r\n") + m_file_path + _T("\r\n"));
 		sendFile();
 		MessageBox(m_file_upload + _T(" is uploaded successfully!"), _T("Success"), MB_OK);
+		GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(TRUE);
+
 		m_file_upload = _T("");
 
 	}

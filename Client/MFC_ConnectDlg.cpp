@@ -26,7 +26,6 @@ MFC_ConnectDlg::~MFC_ConnectDlg()
 void MFC_ConnectDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDCANCEL, m_title);
 	DDX_Text(pDX, IDC_EDT_IP, m_ip_server);
 	DDX_Control(pDX, IDC_PRG_CONTROL_CONNECT, m_prg_ctrl);
 }
@@ -49,6 +48,7 @@ BOOL MFC_ConnectDlg::OnInitDialog()
 
 	GetDlgItem(IDC_STATIC_TITLE)->SetFont(&font);
 
+
 	m_ip_server = IP;
 	UpdateData(FALSE);
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -57,6 +57,7 @@ BOOL MFC_ConnectDlg::OnInitDialog()
 
 BEGIN_MESSAGE_MAP(MFC_ConnectDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_CONNECT, &MFC_ConnectDlg::OnBnClickedBtnConnect)
+	ON_BN_CLICKED(IDCANCEL, &MFC_ConnectDlg::OnBnClickedCancel)
 END_MESSAGE_MAP()
 
 
@@ -160,4 +161,11 @@ void MFC_ConnectDlg::OnBnClickedBtnConnect()
 	CreateSocket();
 	Connect();
 
+}
+
+
+void MFC_ConnectDlg::OnBnClickedCancel()
+{
+	// TODO: Add your control notification handler code here
+	CDialogEx::OnCancel();
 }

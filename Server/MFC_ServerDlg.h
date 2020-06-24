@@ -81,7 +81,8 @@ public:
 	/*Send upload file to all clients*/
 	void SendFileNameToAllClient(CString file);
 
-	std::string getNameOfFile(std::string s);
+	std::string GetFilePath(std::string s);
+
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
@@ -107,7 +108,7 @@ protected:
 	std::map<CString, CString> m_account;
 	std::vector<CString> m_file;
 	std::vector<CString> res;
-
+	std::vector<CString> m_file_path;
 };
 
 extern std::string file_name;

@@ -441,19 +441,16 @@ void CMFCServerDlg::SendFileNameToAllClient(CString file)
 	}
 }
 
-std::string CMFCServerDlg::getNameOfFile(std::string s)
+std::string CMFCServerDlg::GetFilePath(std::string s)
 {
-	std::string res = "";
-	for (int i = s.size() - 1; i >= 0; i--)
-	{
-		if (s[i] == '\\') 
-			break;
-		res = s[i] + res;
+	for(int i = 0; i < m_file_path.size(); i++)	
+	{ 
+		std::string path = ConvertToString(m_file_path[i]);
+		if (path.find(s) != std::string::npos)
+			return path;
 	}
-	return res;
-	
+	return "";
 }
-
 
 
 void CMFCServerDlg::OnBnClickedBtnListen()
@@ -493,6 +490,7 @@ void CMFCServerDlg::OnBnClickedBtnAddFiles()
 	if (t.DoModal() == IDOK)
 	{
 		CString tmp = t.GetFileName();
+		m_file_path.push_back(t.GetPathName());
 		m_list_files.InsertItem(0, tmp);
 		m_file.push_back(tmp);
 
@@ -786,7 +784,8 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 					mSend(wParam, _T("Download\r\n") + cs_port + _T("\r\n"));
 					
-					file_name = ConvertToString(res[1]);
+					std::string path = ConvertToString(res[1]);
+					file_name = GetFilePath(path);
 					AfxBeginThread(sendFile, 0);
 					
 				}

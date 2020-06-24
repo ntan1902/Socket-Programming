@@ -14,8 +14,8 @@
 #define new DEBUG_NEW
 #endif
 
-std::string CMFCServerDlg::file_name;
-
+std::string file_name;
+int iPort = 10000;
 // CAboutDlg dialog used for App About
 
 class CAboutDlg : public CDialogEx
@@ -486,6 +486,168 @@ void CMFCServerDlg::OnBnClickedBtnClear()
 	UpdateData(FALSE);
 }
 
+void CMFCServerDlg::OnBnClickedBtnAddFiles()
+{
+	// TODO: Add your control notification handler code here
+	CFileDialog t(true);
+	if (t.DoModal() == IDOK)
+	{
+		CString tmp = t.GetFileName();
+		m_list_files.InsertItem(0, tmp);
+		m_file.push_back(tmp);
+
+		/*Send file to all clients*/
+		SendFileNameToAllClient(tmp);
+	}
+}
+
+UINT CMFCServerDlg::sendFile(LPVOID pParam)
+{
+	if (AfxSocketInit() == FALSE)
+	{
+
+		return FALSE;
+	}
+
+	CSocket Server; //cha
+
+
+	
+	if (Server.Create(iPort, SOCK_STREAM, NULL) == 0)
+	{
+		return FALSE;
+	}
+	else
+	{
+
+		if (Server.Listen(32) == FALSE)
+		{
+
+			Server.Close();
+			return FALSE;
+		}
+
+	}
+
+
+	CSocket Client;
+	if (Server.Accept(Client))
+	{
+		int file_size;
+
+		std::ifstream fi(file_name, std::ios::binary);
+		if (!fi)
+			return 0;
+
+		// Get size of file
+		fi.seekg(0, std::ios::end);
+		file_size = fi.tellg();
+		fi.seekg(0, std::ios::beg);
+
+		// Send size of file
+		Client.Send((char*)&file_size, sizeof(file_size));
+
+		// Send data
+		/*std::stringstream strStream;
+		strStream << fi.rdbuf();
+		std::string str = strStream.str();*/
+		char *buffer = new char[file_size]{ 0 };
+
+		int bytes_sent;
+		int bytes_to_send = file_size;
+		do
+		{
+			int buffer_size;
+			buffer_size = (file_size > bytes_to_send) ? bytes_to_send : file_size;
+			fi.read((char*)buffer, buffer_size);
+			
+			do 
+			{
+				bytes_sent = Client.Send((char*)buffer, buffer_size);
+			} while (bytes_sent == -1);
+
+			bytes_to_send -= bytes_sent;
+
+		} while (bytes_to_send > 0);
+
+		//Client.Send((char*)str.c_str(), file_size);
+		delete[]buffer;
+		fi.close();
+		///------------------------------------------------------------------------------------
+	}
+	Client.Close();
+	Server.Close();
+}
+
+UINT CMFCServerDlg::receiveFile(LPVOID pParam)
+{
+	if (AfxSocketInit() == FALSE)
+	{
+
+		return FALSE;
+	}
+
+	CSocket Server;
+	
+	if (Server.Create(iPort, SOCK_STREAM, NULL) == 0)
+	{
+
+		return FALSE;
+	}
+	else
+	{
+
+		if (Server.Listen(32) == FALSE)
+		{
+			Server.Close();
+			return FALSE;
+		}
+
+	}
+
+
+	CSocket Client;
+	if (Server.Accept(Client))
+	{
+
+		std::ofstream fo(file_name, std::ios::binary);
+
+		// Get size of file
+		int file_size = 0;
+		Client.Receive((char*)&file_size, sizeof(file_size));
+
+		char *buffer = new char[file_size] { 0 };
+
+		int bytes_received;
+		int bytes_to_receive = file_size;
+		do
+		{
+			int buffer_size;
+			buffer_size = (file_size > bytes_to_receive) ? bytes_to_receive : file_size;
+
+
+			do
+			{
+				bytes_received = Client.Receive((char*)buffer, buffer_size);
+			} while (bytes_received == -1);
+
+			fo.write((char*)buffer, bytes_received);
+			memset(buffer, 0, file_size);
+
+			bytes_to_receive -= bytes_received;
+
+		} while (bytes_to_receive > 0);
+
+		delete[]buffer;
+		fo.close();
+		///------------------------------------------------------------------------------------
+	}
+	Client.Close();
+	Server.Close();
+}
+
+
+
 
 LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 {
@@ -618,11 +780,15 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 				if (file_exist)
 				{
-					//SendFileToClient(wParam, true, res[1]);
-					mSend(wParam, _T("Download\r\n"));
+					iPort++;
+					std::string s_port = std::to_string(iPort);
+					CString cs_port(s_port.c_str());
+
+					mSend(wParam, _T("Download\r\n") + cs_port + _T("\r\n"));
+					
 					file_name = ConvertToString(res[1]);
 					AfxBeginThread(sendFile, 0);
-					mSend(wParam, _T("DownloadSuccess\r\nThe file name doesn't exist\r\n"));
+					
 				}
 				else
 				{
@@ -643,15 +809,20 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 						add_file = false;
 					}
 				}
-				if(add_file)
+				if (add_file)
+				{
 					m_file.push_back(res[1]);
-				
+				}
+
+				iPort++;
+				std::string s_port = std::to_string(iPort);
+				CString cs_port(s_port.c_str());
+
+				mSend(wParam, _T("Upload\r\n") + cs_port + _T("\r\n"));
+
 				file_name = ConvertToString(res[1]);
 				AfxBeginThread(receiveFile, 0);
-				
-				//UploadPathFile(res[1]);
-
-
+		
 				m_list_box_info.AddString(m_client[i].m_user_name + _T(" upload file ") + res[1]);
 				UpdateListFile();
 				
@@ -670,6 +841,15 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			if (i >= 0)
 			{
 				m_list_box_info.AddString(m_client[i].m_user_name + _T(" disconnected"));
+				
+				for (int j = 0; j < m_client.size(); j++)
+				{
+					if (j != i && m_client[j].m_bIsLogin)
+					{
+						mSend(m_client[j].m_client_sock, _T("OtherClientDisConected\r\n") + m_client[i].m_user_name + _T("\r\n"));
+					}
+				}
+
 				m_client.erase(m_client.begin() + i);
 				UpdateListClient();
 				closesocket(wParam);
@@ -679,147 +859,4 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	return 0;
-}
-
-UINT CMFCServerDlg::sendFile(LPVOID pParam)
-{
-	if (AfxSocketInit() == FALSE)
-	{
-	
-		return FALSE;
-	}
-
-	CSocket Server; //cha
-							  
-	if (Server.Create(5000) == 0) 
-	{
-		return FALSE;
-	}
-	else
-	{
-		
-
-		if (Server.Listen(32) == FALSE)
-		{
-			
-			Server.Close();
-			return FALSE;
-		}
-
-	}
-
-
-	CSocket Client;
-	if (Server.Accept(Client))
-	{
-		int file_size;
-
-		std::ifstream fi(file_name, std::ios::binary);
-		if (!fi)
-			return 0;
-
-		// Get size of file
-		fi.seekg(0, std::ios::end);
-		file_size = fi.tellg();
-		fi.seekg(0, std::ios::beg);
-
-		// Send size of file
-		Client.Send((char*)&file_size, sizeof(file_size));
-
-		// Send data
-		std::stringstream strStream;
-		strStream << fi.rdbuf();
-		std::string str = strStream.str();
-
-		int sent;
-		do
-		{
-			Client.Send((char*)str.c_str(), file_size);
-			Client.Receive((char*)&sent, sizeof(int));
-		} while (sent == 0);
-		
-		fi.close();
-		///------------------------------------------------------------------------------------
-	}
-	Client.Close();
-	Server.Close();
-}
-
-UINT CMFCServerDlg::receiveFile(LPVOID pParam)
-{
-	if (AfxSocketInit() == FALSE)
-	{
-		
-		return FALSE;
-	}
-
-	CSocket Server;
-							  
-	if (Server.Create(5000) == 0) 
-	{
-		
-		return FALSE;
-	}
-	else
-	{
-
-		if (Server.Listen(32) == FALSE)
-		{
-			Server.Close();
-			return FALSE;
-		}
-
-	}
-
-
-	CSocket Client;
-	if (Server.Accept(Client))
-	{
-		int file_size = 0, bytes_recevived, bytes_to_receive;
-		
-		std::ofstream fo(file_name, std::ios::binary);
-
-		// Nhan kich thuoc file
-		int size = 0;
-		Client.Receive((char*)&size, sizeof(size));
-
-		char *str = new char[size + 1]{ 0 };
-		//std::string str;
-		int bytes_recv, bytes_missed;
-		do
-		{
-			bytes_recv = Client.Receive(str, size + 1);
-			bytes_missed = size - bytes_recv;
-			if (bytes_missed > 0)
-			{
-				int sent = 0;
-				Client.Send((char*)&sent, sizeof(int));
-			}
-		} while (bytes_missed > 0);
-
-		fo.write(str, size + 1);
-
-		delete[]str;
-		fo.close();
-		///------------------------------------------------------------------------------------
-	}
-	Client.Close();
-	Server.Close();
-}
-
-
-void CMFCServerDlg::OnBnClickedBtnAddFiles()
-{
-	// TODO: Add your control notification handler code here
-	CFileDialog t(true);
-	if (t.DoModal() == IDOK)
-	{
-		CString tmp = t.GetFileName();
-		m_list_files.InsertItem(0, tmp);
-		m_file.push_back(tmp);
-
-		/*Send file to all clients*/
-		SendFileNameToAllClient(tmp);
-		//UploadPathFile(t.GetPathName());
-	}
 }

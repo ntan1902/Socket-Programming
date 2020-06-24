@@ -60,6 +60,8 @@ public:
 	void Split(CString src, std::vector<CString> &des);
 	void InitFile();
 
+	bool receiveFile();
+	bool sendFile();
 	afx_msg void OnBnClickedBtnLogin();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnLogout();
@@ -68,8 +70,6 @@ public:
 	afx_msg void OnBnClickedBtnDownload();
 	afx_msg void OnBnClickedBtnUpload();
 	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
-	bool receiveFile();
-	bool sendFile();
 protected:
 	int buffLength;
 	CListBox m_list_box_info;
@@ -81,6 +81,8 @@ protected:
 	CString m_file_upload;
 	CListCtrl m_list_files;
 	std::vector<CString> m_file;
-
+	
+	/*port to exchange data with server*/
+	int m_port;
 
 };

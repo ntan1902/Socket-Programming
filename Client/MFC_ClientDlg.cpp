@@ -269,7 +269,6 @@ void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
 {
 	int p;
 	int start = 0;
-	// 1\r\nNtan\r\n1902\r\n
 	while (src.Find(_T("\r\n"), start) != -1)
 	{
 		p = src.Find(_T("\r\n"), start);
@@ -286,6 +285,116 @@ void CMFCClientDlg::InitFile()
 
 }
 
+bool CMFCClientDlg::receiveFile()
+{
+	if (AfxSocketInit() == FALSE)
+	{
+		return false;
+	}
+
+	CSocket Client;
+	Client.Create();
+
+	if (Client.Connect(_T("127.0.0.1"), m_port) != 0)
+	{
+		CT2CA pszConvertedAnsiString(m_file_download);
+		std::string file_down(pszConvertedAnsiString);
+		std::ofstream fo(file_down, std::ios::binary);
+
+		// Get size of file
+		int file_size = 0;
+		Client.Receive((char*)&file_size, sizeof(file_size));
+
+		char *buffer = new char[file_size]{ 0 };
+		
+		int bytes_received;
+		int bytes_to_receive = file_size;
+		do
+		{
+			int buffer_size;
+			buffer_size = (file_size > bytes_to_receive) ? bytes_to_receive : file_size;
+			
+
+			do
+			{
+				bytes_received = Client.Receive((char*)buffer, buffer_size);
+			} while (bytes_received == -1);
+
+			fo.write((char*)buffer, bytes_received);
+			memset(buffer, 0, file_size);
+
+			bytes_to_receive -= bytes_received;
+
+		} while (bytes_to_receive > 0);
+
+		delete[]buffer;
+		fo.close();
+		///-------------------------------------------------------------------------------
+	}
+	/*Download succeed*/
+	MessageBox(m_file_download + _T(" is download successfully!"), _T("Success"), MB_OK);
+	GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(TRUE);
+	m_file_download = _T("");
+	
+	Client.Close();
+	return 1;
+}
+
+bool CMFCClientDlg::sendFile()
+{
+	if (AfxSocketInit() == FALSE)
+	{
+		return FALSE;
+	}
+
+	CSocket Client;
+	Client.Create();
+
+	if (Client.Connect(_T("127.0.0.1"), m_port) != 0)
+	{
+
+		int file_size;
+		std::string file_name = ConvertToString(m_file_upload);
+		std::ifstream fi(file_name, std::ios::binary);
+		if (!fi)
+			return 0;
+
+		// Get size of file
+		fi.seekg(0, std::ios::end);
+		file_size = fi.tellg();
+		fi.seekg(0, std::ios::beg);
+
+		// Send size of file
+		Client.Send((char*)&file_size, sizeof(file_size));
+
+		char *buffer = new char[file_size] { 0 };
+
+		int bytes_sent;
+		int bytes_to_send = file_size;
+		do
+		{
+			int buffer_size;
+			buffer_size = (file_size > bytes_to_send) ? bytes_to_send : file_size;
+			fi.read((char*)buffer, buffer_size);
+
+			do
+			{
+				bytes_sent = Client.Send((char*)buffer, buffer_size);
+			} while (bytes_sent == -1);
+
+			bytes_to_send -= bytes_sent;
+
+		} while (bytes_to_send > 0);
+
+		//Client.Send((char*)str.c_str(), file_size);
+		delete[]buffer;
+		fi.close();
+		///-------------------------------------------------------------------------------
+	}
+	Client.Close();
+
+	return 1;
+}
 void CMFCClientDlg::OnBnClickedBtnLogin()
 {
 	// TODO: Add your control notification handler code here
@@ -308,8 +417,6 @@ void CMFCClientDlg::OnBnClickedBtnLogin()
 
 	UpdateData(FALSE);
 }
-
-
 
 void CMFCClientDlg::OnBnClickedCancel()
 {
@@ -343,13 +450,74 @@ void CMFCClientDlg::OnBnClickedBtnLogout()
 	}
 }
 
+void CMFCClientDlg::OnBnClickedBtnRegister()
+{
+	// TODO: Add your control notification handler code here
+	ShowWindow(HIDE_WINDOW);
+	MFC_RegisterDlg dlg;
+	dlg.SetSocket(m_client_sock);
+	dlg.DoModal();
+	
+	ShowWindow(SW_SHOW);
+	NonBlocking();
+	UpdateData(FALSE);
+}
+
+
+void CMFCClientDlg::OnBnClickedBtnDownload()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+	
+	int nItem = 0; //Represents the row number inside CListCtrl
+	CString tmp;
+	for (nItem = 0; nItem < m_list_files.GetItemCount(); nItem++)
+	{
+		BOOL bChecked = m_list_files.GetCheck(nItem);
+		if (bChecked == 1)
+		{
+			GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(FALSE);
+			m_file_download = m_list_files.GetItemText(nItem, 0);
+			tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
+			RunProgressControl();
+			mSend(m_client_sock, tmp);
+			m_list_files.SetCheck(nItem, FALSE);
+		}
+	}
+	UpdateData(FALSE);
+}
+
+
+void CMFCClientDlg::OnBnClickedBtnUpload()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(FALSE);
+	CFileDialog t(true);
+	if (t.DoModal() == IDOK)
+	{
+		m_file_upload = t.GetFileName();
+		mSend(m_client_sock, _T("Upload\r\n") + m_file_upload + _T("\r\n"));
+		RunProgressControl();
+		m_prg_ctrl.ShowWindow(HIDE_WINDOW);
+		MessageBox(m_file_upload + _T(" is upload successfully!"), _T("Success"), MB_OK);
+
+		m_file_upload = _T("");
+
+	}
+	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(TRUE);
+
+	UpdateData(FALSE);
+}
+
+
 LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 {
 	if (WSAGETSELECTERROR(lParam))
 	{
 		// Display the error and close the socket
 		closesocket(wParam);
-		
+
 	}
 	switch (WSAGETSELECTEVENT(lParam))
 	{
@@ -400,6 +568,11 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				/*Other client logout*/
 				m_list_box_info.AddString(res[1] + _T(" logout"));
 			}
+			
+			else if (res[0] == _T("OtherClientDisConected"))
+			{
+				m_list_box_info.AddString(res[1] + _T(" disconected"));
+			}
 
 			else if (res[0] == _T("SendFile"))
 			{
@@ -407,21 +580,23 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			}
 			else if (res[0] == _T("Download"))
 			{
-				if(receiveFile());
+				//int iPort = _ttoi(res[1]);
+				m_port = _ttoi(res[1]);
+				//MessageBox(res[1]);
+				if (receiveFile());
 				{
-					int p = 1;
+					m_prg_ctrl.ShowWindow(HIDE_WINDOW);
 				}
+			}
+
+			else if (res[0] == _T("Upload"))
+			{
+				m_port = _ttoi(res[1]);
+				sendFile();
 			}
 			else if (res[0] == _T("DownloadError"))
 			{
 				MessageBox(res[1], _T("Error"), MB_OK | MB_ICONERROR);
-				m_file_download = _T("");
-			}
-			else if (res[0] == _T("DownloadSuccess"))
-			{
-				MessageBox(m_file_download + _T(" is downloaded successfully!"), _T("Success"), MB_OK);
-				GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(TRUE);
-
 				m_file_download = _T("");
 			}
 
@@ -439,182 +614,12 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			GetDlgItem(IDC_BTN_LOGOUT)->EnableWindow(FALSE);
 			GetDlgItem(IDC_EDT_USER)->EnableWindow(FALSE);
 			GetDlgItem(IDC_EDT_PASS)->EnableWindow(FALSE);
-
+			GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(FALSE);
+			GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(FALSE);
 			UpdateData(FALSE);
 			break;
 		}
 
 	}
 	return 0;
-}
-
-bool CMFCClientDlg::receiveFile()
-{
-	if (AfxSocketInit() == FALSE)
-	{
-		return FALSE;
-	}
-
-	CSocket Client;
-	Client.Create();
-
-	if (Client.Connect(_T("127.0.0.1"), 5000) != 0)
-	{
-		
-		// Khai bao
-		int file_size = 0, bytes_recevived, bytes_to_receive;
-		CT2CA pszConvertedAnsiString(m_file_download);
-		std::string file_down(pszConvertedAnsiString);
-		std::ofstream fo(file_down, std::ios::binary);
-
-		// Nhan kich thuoc file
-		int size = 0;
-		Client.Receive((char*)&size, sizeof(size));
-
-		char *str = new char[size + 1];
-		//std::string str;
-		int bytes_recv, bytes_missed;
-		do
-		{
-			bytes_recv = Client.Receive(str, size + 1);
-			bytes_missed = size  - bytes_recv;
-			if (bytes_missed > 0)
-			{
-				int sent = 0;
-				Client.Send((char*)&sent, sizeof(int));
-			}
-		} while (bytes_missed > 0);
-		//bytes_recv = Client.Receive(str, size + 1);
-
-		fo.write(str, size + 1);
-
-		delete[]str;
-		fo.close();
-		///-------------------------------------------------------------------------------
-	}
-	else
-	{
-		//cout << "Khong the ket noi den Server !!!" << endl;
-	}
-
-	// Dong ket noi
-	Client.Close();
-	return 1;
-}
-
-bool CMFCClientDlg::sendFile()
-{
-	if (AfxSocketInit() == FALSE)
-	{
-		return FALSE;
-	}
-
-	CSocket Client;
-	Client.Create();
-
-	if (Client.Connect(_T("127.0.0.1"), 5000) != 0)
-	{
-
-		// Khai bao
-		int file_size;
-		std::string file_name = ConvertToString(m_file_upload);
-		std::ifstream fi(file_name, std::ios::binary);
-		if (!fi)
-			return 0;
-
-		// Lay kich thuoc file
-		fi.seekg(0, std::ios::end);
-		file_size = fi.tellg();
-		fi.seekg(0, std::ios::beg);
-
-		// Gui kich thuoc file
-		Client.Send((char*)&file_size, sizeof(file_size));
-
-		std::stringstream strStream;
-		strStream << fi.rdbuf();
-		std::string str = strStream.str();
-
-		int sent;
-		do
-		{
-			Client.Send((char*)str.c_str(), file_size);
-			Client.Receive((char*)&sent, sizeof(int));
-		} while (sent == 0);
-
-		fi.close();
-		///-------------------------------------------------------------------------------
-	}
-	else
-	{
-		//cout << "Khong the ket noi den Server !!!" << endl;
-	}
-
-	// Dong ket noi
-	Client.Close();
-	
-	return 1;
-}
-
-void CMFCClientDlg::OnBnClickedBtnRegister()
-{
-	// TODO: Add your control notification handler code here
-	ShowWindow(HIDE_WINDOW);
-	MFC_RegisterDlg dlg;
-	dlg.SetSocket(m_client_sock);
-	dlg.DoModal();
-	
-	ShowWindow(SW_SHOW);
-	NonBlocking();
-	UpdateData(FALSE);
-}
-
-
-void CMFCClientDlg::OnBnClickedBtnDownload()
-{
-	// TODO: Add your control notification handler code here
-	UpdateData(TRUE);
-	GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(FALSE);
-	
-	int nItem = 0; //Represents the row number inside CListCtrl
-	CString tmp;
-	for (nItem = 0; nItem < m_list_files.GetItemCount(); nItem++)
-	{
-		BOOL bChecked = m_list_files.GetCheck(nItem);
-		if (bChecked == 1)
-		{
-			m_file_download = m_list_files.GetItemText(nItem, 0);
-			tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
-			mSend(m_client_sock, tmp);
-			m_list_files.SetCheck(nItem, FALSE);
-		}
-	}
-
-
-
-	/*CString tmp = _T("Download\r\n") + m_file_download + _T("\r\n");
-	mSend(m_client_sock, tmp);*/
-	UpdateData(FALSE);
-}
-
-
-void CMFCClientDlg::OnBnClickedBtnUpload()
-{
-	// TODO: Add your control notification handler code here
-	UpdateData(TRUE);
-	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(FALSE);
-	CFileDialog t(true);
-	if (t.DoModal() == IDOK)
-	{
-		m_file_upload = t.GetFileName();
-		CString m_file_path = t.GetPathName();
-		mSend(m_client_sock, _T("Upload\r\n") + m_file_upload + _T("\r\n") + m_file_path + _T("\r\n"));
-		sendFile();
-		MessageBox(m_file_upload + _T(" is uploaded successfully!"), _T("Success"), MB_OK);
-		GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(TRUE);
-
-		m_file_upload = _T("");
-
-	}
-
-	UpdateData(FALSE);
 }

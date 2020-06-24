@@ -85,11 +85,11 @@ public:
 	afx_msg void OnBnClickedBtnListen();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnClear();
-	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
+	afx_msg void OnBnClickedBtnAddFiles();
+
 	static UINT sendFile(LPVOID pParam);
 	static UINT receiveFile(LPVOID pParam);
-
-	static std::string file_name;
+	LRESULT SockMsg(WPARAM wParam, LPARAM lParam);
 protected:
 	int buffLength;
 	CListBox m_list_box_info;
@@ -107,7 +107,8 @@ protected:
 	std::map<CString, CString> m_account;
 	std::vector<CString> m_file;
 	std::vector<CString> res;
-	
-public:
-	afx_msg void OnBnClickedBtnAddFiles();
+
 };
+
+extern std::string file_name;
+extern int iPort;

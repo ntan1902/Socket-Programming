@@ -549,7 +549,7 @@ UINT CMFCServerDlg::sendFile(LPVOID pParam)
 		/*std::stringstream strStream;
 		strStream << fi.rdbuf();
 		std::string str = strStream.str();*/
-		char *buffer = new char[file_size]{ 0 };
+		char *buffer = new char[file_size];
 
 		int bytes_sent;
 		int bytes_to_send = file_size;
@@ -614,7 +614,7 @@ UINT CMFCServerDlg::receiveFile(LPVOID pParam)
 		int file_size = 0;
 		Client.Receive((char*)&file_size, sizeof(file_size));
 
-		char *buffer = new char[file_size] { 0 };
+		char *buffer = new char[file_size];
 
 		int bytes_received;
 		int bytes_to_receive = file_size;
@@ -749,6 +749,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				}
 				UpdateData(FALSE);
 			}
+
 			else if (res[0] == _T("Register"))
 			{
 				if (!CheckRegister(res[1]))
@@ -767,7 +768,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			else if (res[0] == _T("Download"))
 			{
 				bool file_exist = false;
-				for (int i = 0; i < m_file.size(); i++)
+				for (int k = 0; k < m_file.size(); k++)
 				{
 					
 					if (m_file[i].Compare(res[1]) == 0)
@@ -798,37 +799,59 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 
 				m_list_box_info.AddString(m_client[i].m_user_name + _T(" download file ") + res[1]);
 			}
+
 			else if (res[0] == _T("Upload"))
 			{
-				bool add_file = true;
-				for (int i = 0; i < m_file.size(); i++)
+				/*Check if there is any client is uploading*/
+				bool bCanUpload = true;
+				for(int j = 0 ; j < m_client.size(); j++)
 				{
-					if (m_file[i] == res[1])
+					if (m_client[j].m_bIsUpload)
+						bCanUpload = false;
+				}
+				if (bCanUpload)
+				{
+					m_client[i].m_bIsUpload = true;
+
+					bool add_file = true;
+					for (int k = 0; k < m_file.size(); k++)
 					{
-						add_file = false;
+						if (m_file[k] == res[1])
+						{
+							add_file = false;
+						}
 					}
+					if (add_file)
+					{
+						m_file.push_back(res[1]);
+					}
+
+					iPort++;
+					std::string s_port = std::to_string(iPort);
+					CString cs_port(s_port.c_str());
+
+					mSend(wParam, _T("Upload\r\n") + cs_port + _T("\r\n"));
+
+					file_name = ConvertToString(res[1]);
+					AfxBeginThread(receiveFile, 0);
+
+					m_list_box_info.AddString(m_client[i].m_user_name + _T(" upload file ") + res[1]);
+					UpdateListFile();
+
+					/*Send upload file to all clients*/
+					SendFileNameToAllClient(res[1]);
 				}
-				if (add_file)
+				else
 				{
-					m_file.push_back(res[1]);
+					mSend(wParam, _T("UploadError\r\nThere is other client uploading\r\n"));
+
 				}
-
-				iPort++;
-				std::string s_port = std::to_string(iPort);
-				CString cs_port(s_port.c_str());
-
-				mSend(wParam, _T("Upload\r\n") + cs_port + _T("\r\n"));
-
-				file_name = ConvertToString(res[1]);
-				AfxBeginThread(receiveFile, 0);
-		
-				m_list_box_info.AddString(m_client[i].m_user_name + _T(" upload file ") + res[1]);
-				UpdateListFile();
-				
-				/*Send upload file to all clients*/
-				SendFileNameToAllClient(res[1]);
 			}
 
+			else if (res[0] == "UploadSuccess")
+			{
+				m_client[i].m_bIsUpload = false;
+			}
 			res.clear();
 			break;
 		}

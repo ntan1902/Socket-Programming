@@ -102,6 +102,7 @@ protected:
 		SOCKET m_client_sock;
 		CString m_user_name;
 		bool m_bIsLogin = false;
+		bool m_bIsUpload = false;
 	};
 	std::vector<SOCKET_CLIENT> m_client;
 	sockaddr_in m_server_addr;

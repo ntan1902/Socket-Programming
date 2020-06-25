@@ -128,7 +128,6 @@ BOOL CMFCClientDlg::OnInitDialog()
 	m_list_files.InsertColumn(0, _T("File name"), LVCFMT_CENTER, 500);
 
 	UpdateData(FALSE);
-	InitFile();
 	NonBlocking();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -277,14 +276,6 @@ void CMFCClientDlg::Split(CString src, std::vector<CString>& des)
 
 	}
 }
-
-void CMFCClientDlg::InitFile()
-{
-	m_file.push_back(_T(FILE_NAME_CLIENT1));
-	m_file.push_back(_T(FILE_NAME_CLIENT2));
-
-}
-
 bool CMFCClientDlg::receiveFile()
 {
 	if (AfxSocketInit() == FALSE)
@@ -305,7 +296,7 @@ bool CMFCClientDlg::receiveFile()
 		int file_size = 0;
 		Client.Receive((char*)&file_size, sizeof(file_size));
 
-		char *buffer = new char[file_size]{ 0 };
+		char *buffer = new char[file_size];
 		
 		int bytes_received;
 		int bytes_to_receive = file_size;
@@ -331,12 +322,17 @@ bool CMFCClientDlg::receiveFile()
 		fo.close();
 		///-------------------------------------------------------------------------------
 	}
+	else
+	{
+		MessageBox( _T("Download unsucessfully"), _T("Error"), MB_ICONERROR);
+		return false;
+	}
+	Client.Close();
+	
 	/*Download succeed*/
 	MessageBox(m_file_download + _T(" is download successfully!"), _T("Success"), MB_OK);
 	GetDlgItem(IDC_BTN_DOWNLOAD)->EnableWindow(TRUE);
 	m_file_download = _T("");
-	
-	Client.Close();
 	return 1;
 }
 
@@ -367,7 +363,7 @@ bool CMFCClientDlg::sendFile()
 		// Send size of file
 		Client.Send((char*)&file_size, sizeof(file_size));
 
-		char *buffer = new char[file_size] { 0 };
+		char *buffer = new char[file_size];
 
 		int bytes_sent;
 		int bytes_to_send = file_size;
@@ -392,7 +388,11 @@ bool CMFCClientDlg::sendFile()
 		///-------------------------------------------------------------------------------
 	}
 	Client.Close();
-
+	
+	/*Upload succeed*/
+	MessageBox(m_file_upload + _T(" is upload successfully!"), _T("Success"), MB_OK);
+	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(TRUE);
+	m_file_upload = _T("");
 	return 1;
 }
 void CMFCClientDlg::OnBnClickedBtnLogin()
@@ -500,9 +500,6 @@ void CMFCClientDlg::OnBnClickedBtnUpload()
 		mSend(m_client_sock, _T("Upload\r\n") + m_file_upload + _T("\r\n"));
 		RunProgressControl();
 		m_prg_ctrl.ShowWindow(HIDE_WINDOW);
-		MessageBox(m_file_upload + _T(" is upload successfully!"), _T("Success"), MB_OK);
-
-		m_file_upload = _T("");
 
 	}
 	GetDlgItem(IDC_BTN_UPLOAD)->EnableWindow(TRUE);
@@ -578,27 +575,35 @@ LRESULT CMFCClientDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 			{
 				m_list_files.InsertItem(0, res[1]);
 			}
+			
 			else if (res[0] == _T("Download"))
 			{
-				//int iPort = _ttoi(res[1]);
 				m_port = _ttoi(res[1]);
-				//MessageBox(res[1]);
 				if (receiveFile());
 				{
 					m_prg_ctrl.ShowWindow(HIDE_WINDOW);
 				}
 			}
 
-			else if (res[0] == _T("Upload"))
-			{
-				m_port = _ttoi(res[1]);
-				sendFile();
-			}
 			else if (res[0] == _T("DownloadError"))
 			{
 				MessageBox(res[1], _T("Error"), MB_OK | MB_ICONERROR);
 				m_file_download = _T("");
 			}
+
+			else if (res[0] == _T("Upload"))
+			{
+				m_port = _ttoi(res[1]);
+				sendFile();
+				mSend(m_client_sock, _T("UploadSuccess\r\n"));
+			}
+
+			else if (res[0] == _T("UploadError"))
+			{
+				MessageBox(res[1], _T("Error"), MB_OK | MB_ICONERROR);
+				m_file_upload = _T("");
+			}
+
 
 			UpdateData(FALSE);
 

@@ -17,8 +17,6 @@
 #pragma warning(disable : 4996)
 
 #define WM_SOCKET WM_USER+1
-#define FILE_NAME_CLIENT1 "Data_Client1.txt"
-#define FILE_NAME_CLIENT2 "W.docx"
 
 
 // CMFCClientDlg dialog
@@ -58,7 +56,6 @@ public:
 	void mSend(SOCKET sk, CString Command);
 	int mRecv(SOCKET sk, CString &Command);
 	void Split(CString src, std::vector<CString> &des);
-	void InitFile();
 
 	bool receiveFile();
 	bool sendFile();
@@ -80,7 +77,6 @@ protected:
 	CString m_file_download;
 	CString m_file_upload;
 	CListCtrl m_list_files;
-	std::vector<CString> m_file;
 	
 	/*port to exchange data with server*/
 	int m_port;

@@ -1,8 +1,0 @@
-﻿  pch.cpp
-  MFC_Server.cpp
-  MFC_ServerDlg.cpp
-c:\users\an\desktop\18127058_18127163_18127203\source\server\mfc_server\mfc_serverdlg.cpp(542): warning C4244: '=': conversion from 'std::streamoff' to 'int', possible loss of data
-  Generating Code...
-c:\users\an\desktop\18127058_18127163_18127203\source\server\mfc_server\mfc_serverdlg.cpp(645): warning C4715: 'CMFCServerDlg::receiveFile': not all control paths return a value
-c:\users\an\desktop\18127058_18127163_18127203\source\server\mfc_server\mfc_serverdlg.cpp(578): warning C4715: 'CMFCServerDlg::sendFile': not all control paths return a value
-  MFC_Server.vcxproj -> C:\Users\An\Desktop\18127058_18127163_18127203\Source\Server\x64\Debug\MFC_Server.exe

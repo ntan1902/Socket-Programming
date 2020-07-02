@@ -771,7 +771,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				for (int k = 0; k < m_file.size(); k++)
 				{
 					
-					if (m_file[i].Compare(res[1]) == 0)
+					if (m_file[k].Compare(res[1]) == 0)
 					{
 						file_exist = true;
 					}
@@ -793,7 +793,7 @@ LRESULT CMFCServerDlg::SockMsg(WPARAM wParam, LPARAM lParam)
 				else
 				{
 					mSend(wParam, _T("DownloadError\r\nThe file name doesn't exist\r\n"));
-					res.clear();
+				
 					break;
 				}
 
